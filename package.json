@@ -1,0 +1,27 @@
+{
+    "name": "grpc-node-client",
+    "version": "1.0.0",
+    "private": true,
+    "description": "A node gRPC client for the Salesforce Pub/Sub API",
+    "scripts": {
+        "start": "node index.js",
+        "prettier": "prettier --write '**/*.{css,html,js,json,md,yaml,yml}'"
+    },
+    "author": "pozil",
+    "license": "CC0-1.0",
+    "dependencies": {
+        "@grpc/proto-loader": "^0.6.9",
+        "avro-js": "^1.11.0",
+        "certifi": "^14.5.15",
+        "dotenv": "^10.0.0",
+        "grpc": "^1.24.11",
+        "jsforce": "^1.11.0"
+    },
+    "devDependencies": {
+        "prettier": "^2.5.1"
+    },
+    "volta": {
+        "node": "16.13.1",
+        "npm": "8.1.2"
+    }
+}
