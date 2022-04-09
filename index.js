@@ -1,7 +1,8 @@
 // This project is derived from a [blog post](https://jungleeforce.com/2021/11/11/connecting-to-salesforce-using-pub-sub-api-grpc/) from techinjungle.
 // Official Pub/Sub API pilot repo: https://github.com/developerforce/pub-sub-api-pilot
 
-const grpc = require('grpc');
+const grpc = require('@grpc/grpc-js');
+const protoLoader = require('@grpc/proto-loader');
 const fs = require('fs');
 const jsforce = require('jsforce');
 const avro = require('avro-js');
@@ -13,6 +14,7 @@ const {
     SALESFORCE_LOGIN_URL,
     SALESFORCE_USERNAME,
     SALESFORCE_PASSWORD,
+    SALESFORCE_TOKEN,
     PUB_SUB_ENDPOINT,
     PROTO_FILE,
     TOPIC_NAME,
@@ -20,7 +22,6 @@ const {
 } = process.env;
 
 // Load GRPC
-const protoLoader = require('@grpc/proto-loader');
 const packageDef = protoLoader.loadSync(PROTO_FILE, {});
 const grpcObj = grpc.loadPackageDefinition(packageDef);
 const sfdcPackage = grpcObj.eventbus.v1;
@@ -36,7 +37,7 @@ async function connectToSalesforce() {
     });
     const loginResult = await conn.login(
         SALESFORCE_USERNAME,
-        SALESFORCE_PASSWORD
+        SALESFORCE_PASSWORD + SALESFORCE_TOKEN
     );
     console.log(
         `Connected to Salesforce org ${loginResult.organizationId}: ${conn.instanceUrl}`
@@ -203,10 +204,14 @@ async function publish(client, topicName, schema, payload) {
 }
 
 async function run() {
-    const connectionInfo = await connectToSalesforce();
-    const client = connectToPubSubApi(connectionInfo);
-    const topicSchema = await getEventSchema(client, TOPIC_NAME);
-    subscribe(client, TOPIC_NAME, topicSchema);
+    try {
+        const connectionInfo = await connectToSalesforce();
+        const client = connectToPubSubApi(connectionInfo);
+        const topicSchema = await getEventSchema(client, TOPIC_NAME);
+        subscribe(client, TOPIC_NAME, topicSchema);
+    } catch (err) {
+        console.error('Fatal error: ', err);
+    }
 }
 
 run();
