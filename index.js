@@ -21,53 +21,47 @@ const {
     EVENT_RECEIVE_LIMIT
 } = process.env;
 
-// Load GRPC
-const packageDef = protoLoader.loadSync(PROTO_FILE, {});
-const grpcObj = grpc.loadPackageDefinition(packageDef);
-const sfdcPackage = grpcObj.eventbus.v1;
-
 /**
  * Connects to Salesforce using jsForce
  * This is required to obtain an access token that the Pub/Sub API uses.
- * @returns the connection information required by the Pub/Sub API
+ * @returns the Salesforce connection
  */
 async function connectToSalesforce() {
-    const conn = new jsforce.Connection({
+    const sfConnection = new jsforce.Connection({
         loginUrl: SALESFORCE_LOGIN_URL
     });
-    const loginResult = await conn.login(
+    await sfConnection.login(
         SALESFORCE_USERNAME,
         SALESFORCE_PASSWORD + SALESFORCE_TOKEN
     );
     console.log(
-        `Connected to Salesforce org ${loginResult.organizationId}: ${conn.instanceUrl}`
+        `Connected to Salesforce org ${sfConnection.instanceUrl} as ${SALESFORCE_USERNAME}`
     );
-    return {
-        organizationId: loginResult.organizationId,
-        instanceUrl: conn.instanceUrl,
-        accessToken: conn.accessToken
-    };
+    return sfConnection;
 }
 
 /**
  * Connects to the Pub/Sub API and returns a gRPC client
- * @param {Object} connectionInfo the connection information required by the Pub/Sub API
- * @param {string} connectionInfo.organizationId
- * @param {string} connectionInfo.instanceUrl
- * @param {string} connectionInfo.accessToken
+ * @param {jsforce.Connection} sfConnection the Salesforce connection
  * @returns a gRPC client
  */
-function connectToPubSubApi(connectionInfo) {
-    const metaCallback = (_params, callback) => {
-        const meta = new grpc.Metadata();
-        meta.add('accesstoken', connectionInfo.accessToken);
-        meta.add('instanceurl', connectionInfo.instanceUrl);
-        meta.add('tenantid', connectionInfo.organizationId);
-        callback(null, meta);
-    };
-
+function connectToPubSubApi(sfConnection) {
+    // Read certificates
     const rootCert = fs.readFileSync(certifi);
 
+    // Load proto definition
+    const packageDef = protoLoader.loadSync(PROTO_FILE, {});
+    const grpcObj = grpc.loadPackageDefinition(packageDef);
+    const sfdcPackage = grpcObj.eventbus.v1;
+
+    // Prepare gRPC connection
+    const metaCallback = (_params, callback) => {
+        const meta = new grpc.Metadata();
+        meta.add('accesstoken', sfConnection.accessToken);
+        meta.add('instanceurl', sfConnection.instanceUrl);
+        meta.add('tenantid', sfConnection.userInfo.organizationId);
+        callback(null, meta);
+    };
     const callCreds =
         grpc.credentials.createFromMetadataGenerator(metaCallback);
     const combCreds = grpc.credentials.combineChannelCredentials(
@@ -75,8 +69,9 @@ function connectToPubSubApi(connectionInfo) {
         callCreds
     );
 
+    // Return pub/sub gRPC client
     const client = new sfdcPackage.PubSub(PUB_SUB_ENDPOINT, combCreds);
-    console.log(`Connected to Pub/Sub API`);
+    console.log(`Pub/Sub API client is ready to connect`);
     return client;
 }
 
@@ -93,7 +88,7 @@ async function getEventSchema(client, topicName) {
                 // Handle error
                 reject(err);
             } else {
-                //get the schema information
+                // Get the schema information
                 const schemaId = response.schemaId;
                 client.GetSchema({ schemaId }, (error, res) => {
                     if (error) {
@@ -132,7 +127,7 @@ function subscribe(client, topicName, schema) {
     };
     subscription.write(subscribeRequest);
     console.log(
-        `Pub/Sub subscribe request sent for ${subscribeRequest.numRequested} events...`
+        `Subscribe request sent for ${subscribeRequest.numRequested} events from ${topicName}...`
     );
 
     // Listen to new events.
@@ -205,8 +200,8 @@ async function publish(client, topicName, schema, payload) {
 
 async function run() {
     try {
-        const connectionInfo = await connectToSalesforce();
-        const client = connectToPubSubApi(connectionInfo);
+        const sfConnection = await connectToSalesforce();
+        const client = connectToPubSubApi(sfConnection);
         const topicSchema = await getEventSchema(client, TOPIC_NAME);
         subscribe(client, TOPIC_NAME, topicSchema);
     } catch (err) {

@@ -1,4 +1,4 @@
-# Node gRPC client for the Salesforce Pub/Sub API
+# Sample Node gRPC client for the Salesforce Pub/Sub API
 
 **Warning:** as of the Winter '22 release, the Pub/Sub API is currently in pilot. The implementation of this project may change once the features are GA.
 
@@ -33,10 +33,10 @@ Run the project with `npm start`
 If everything goes well, you'll see output like this:
 
 ```
-Connected to Salesforce org 00D7Q000002DBrqUAG: https://pozilcom-dev-ed.my.salesforce.com
-Connected to Pub/Sub API
+Connected to Salesforce org https://pozilcom-dev-ed.my.salesforce.com as grpc@pozil.com
+Pub/Sub API client is ready to connect
 Topic schema loaded: /data/AccountChangeEvent
-Pub/Sub subscribe request sent for 1 events...
+Subscribe request sent for 1 events from /data/AccountChangeEvent...
 ```
 
 At this point the script will be on hold and will wait for events.
