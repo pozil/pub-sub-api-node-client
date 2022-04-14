@@ -16,9 +16,9 @@ const {
     SALESFORCE_PASSWORD,
     SALESFORCE_TOKEN,
     PUB_SUB_ENDPOINT,
-    PROTO_FILE,
-    TOPIC_NAME,
-    EVENT_RECEIVE_LIMIT
+    PUB_SUB_PROTO_FILE,
+    PUB_SUB_TOPIC_NAME,
+    PUB_SUB_EVENT_RECEIVE_LIMIT
 } = process.env;
 
 /**
@@ -50,7 +50,7 @@ function connectToPubSubApi(sfConnection) {
     const rootCert = fs.readFileSync(certifi);
 
     // Load proto definition
-    const packageDef = protoLoader.loadSync(PROTO_FILE, {});
+    const packageDef = protoLoader.loadSync(PUB_SUB_PROTO_FILE, {});
     const grpcObj = grpc.loadPackageDefinition(packageDef);
     const sfdcPackage = grpcObj.eventbus.v1;
 
@@ -123,7 +123,7 @@ function subscribe(client, topicName, schema) {
     //Once the system has received the events == to numReqested then the stream will end.
     const subscribeRequest = {
         topicName,
-        numRequested: EVENT_RECEIVE_LIMIT
+        numRequested: PUB_SUB_EVENT_RECEIVE_LIMIT
     };
     subscription.write(subscribeRequest);
     console.log(
@@ -202,8 +202,8 @@ async function run() {
     try {
         const sfConnection = await connectToSalesforce();
         const client = connectToPubSubApi(sfConnection);
-        const topicSchema = await getEventSchema(client, TOPIC_NAME);
-        subscribe(client, TOPIC_NAME, topicSchema);
+        const topicSchema = await getEventSchema(client, PUB_SUB_TOPIC_NAME);
+        subscribe(client, PUB_SUB_TOPIC_NAME, topicSchema);
     } catch (err) {
         console.error('Fatal error: ', err);
     }

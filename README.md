@@ -16,10 +16,9 @@ SALESFORCE_USERNAME=YOUR_SALESFORCE_USERNAME
 SALESFORCE_PASSWORD=YOUR_SALESFORCE_PASSWORD
 
 PUB_SUB_ENDPOINT=api.pilot.pubsub.salesforce.com:7443
-PROTO_FILE=pubsub_api.proto
-
-TOPIC_NAME=/data/AccountChangeEvent
-EVENT_RECEIVE_LIMIT=1
+PUB_SUB_PROTO_FILE=pubsub_api.proto
+PUB_SUB_TOPIC_NAME=/data/AccountChangeEvent
+PUB_SUB_EVENT_RECEIVE_LIMIT=1
 ```
 
 > **Warning:** this project relies on a username/password Salesforce authentication flow. This is only recommended for test purposes. Consider switching to JWT auth for extra security.
@@ -117,7 +116,7 @@ gRPC event payloads:  [
 ]
 ```
 
-After receiving the number of requested events (see `EVENT_RECEIVE_LIMIT`), the script will terminate with these messages:
+After receiving the number of requested events (see `PUB_SUB_EVENT_RECEIVE_LIMIT`), the script will terminate with these messages:
 
 ```
 gRPC stream status:  {
