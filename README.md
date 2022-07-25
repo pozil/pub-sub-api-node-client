@@ -1,10 +1,8 @@
 # Sample Node gRPC client for the Salesforce Pub/Sub API
 
-**Warning:** as of the Winter '22 release, the Pub/Sub API is currently in pilot. The implementation of this project may change once the features are GA.
-
 This project is derived from a [blog post](https://jungleeforce.com/2021/11/11/connecting-to-salesforce-using-pub-sub-api-grpc/) written by techinjungle.
 
-See the [official Pub/Sub API pilot repo](https://github.com/developerforce/pub-sub-api-pilot) for more information on the Pub/Sub API.
+See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-api) for more information on the Pub/Sub API.
 
 ## Installation
 
@@ -15,7 +13,7 @@ SALESFORCE_LOGIN_URL=https://login.salesforce.com
 SALESFORCE_USERNAME=YOUR_SALESFORCE_USERNAME
 SALESFORCE_PASSWORD=YOUR_SALESFORCE_PASSWORD
 
-PUB_SUB_ENDPOINT=api.pilot.pubsub.salesforce.com:7443
+PUB_SUB_ENDPOINT=api.pubsub.salesforce.com:7443
 PUB_SUB_PROTO_FILE=pubsub_api.proto
 PUB_SUB_TOPIC_NAME=/data/AccountChangeEvent
 PUB_SUB_EVENT_RECEIVE_LIMIT=1
