@@ -43,24 +43,25 @@ Once it receives events, it will display them like this:
 Received 1 events, latest replay ID: 193945
 gRPC event payloads:  [
   {
-    "replayId": "193945",
+    "replayId": "3223481",
     "payload": {
       "ChangeEventHeader": {
         "entityName": "Account",
         "recordIds": [
-          "0017Q000005yIARQA2"
+          "0017Q00000EiRcfQAF"
         ],
         "changeType": "UPDATE",
-        "changeOrigin": "com/salesforce/api/soap/53.0;client=SfdcInternalAPI/",
-        "transactionKey": "0006d2d3-f3c2-4bde-b75a-8e21f1acc21c",
+        "changeOrigin": "com/salesforce/api/soap/55.0;client=SfdcInternalAPI/",
+        "transactionKey": "0002ac83-fcbd-9443-f901-7d3a380feb2c",
         "sequenceNumber": 1,
-        "commitTimestamp": 1641819688000,
-        "commitNumber": 156839803268,
+        "commitTimestamp": 1658929209000,
+        "commitNumber": 278750099253,
         "commitUser": "0057Q000002aGVkQAM",
         "nulledFields": [],
         "diffFields": [],
         "changedFields": [
-          "0x420000"
+          "Rating",
+          "LastModifiedDate"
         ]
       },
       "Name": null,
@@ -87,7 +88,7 @@ gRPC event payloads:  [
       "CreatedDate": null,
       "CreatedById": null,
       "LastModifiedDate": {
-        "long": 1641819688000
+        "long": 1658929209000
       },
       "LastModifiedById": null,
       "Jigsaw": null,
@@ -113,6 +114,9 @@ gRPC event payloads:  [
   }
 ]
 ```
+
+Note that the event payload includes all object fields but fields that haven't changed are null.
+Use the values from `ChangeEventHeader.nulledFields`, `ChangeEventHeader.diffFields` and `ChangeEventHeader.changedFields` to identify actual value changes.
 
 After receiving the number of requested events (see `PUB_SUB_EVENT_RECEIVE_LIMIT`), the script will terminate with these messages:
 
