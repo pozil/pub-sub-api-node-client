@@ -1,5 +1,5 @@
 // This project is derived from a [blog post](https://jungleeforce.com/2021/11/11/connecting-to-salesforce-using-pub-sub-api-grpc/) from techinjungle.
-// Official Pub/Sub API pilot repo: https://github.com/developerforce/pub-sub-api-pilot
+// Official Pub/Sub API repo: https://github.com/developerforce/pub-sub-api
 
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
@@ -7,6 +7,7 @@ const fs = require('fs');
 const jsforce = require('jsforce');
 const avro = require('avro-js');
 const certifi = require('certifi');
+const { parseEvent } = require('./eventParser.js');
 
 // Load config from .env file
 require('dotenv').config();
@@ -138,7 +139,7 @@ function subscribe(client, topicName, schema) {
                 `Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
             );
             const parsedEvents = data.events.map((event) =>
-                _parseEvent(schema, event)
+                parseEvent(schema, event)
             );
             console.log(
                 'gRPC event payloads: ',
@@ -152,80 +153,12 @@ function subscribe(client, topicName, schema) {
         console.log('gRPC stream ended');
     });
     subscription.on('error', (err) => {
-        // Handle errors
+        // TODO: Handle errors
         console.error('gRPC stream error: ', JSON.stringify(err));
     });
     subscription.on('status', (status) => {
         console.log('gRPC stream status: ', status);
     });
-}
-
-function _parseEvent(schema, event) {
-    const allFields = schema.type.getFields();
-    const replayId = event.replayId.readBigUInt64BE().toString();
-    const payload = schema.type.fromBuffer(event.event.payload); // This schema is the same which we retreived earlier in the GetSchema rpc.
-    payload.ChangeEventHeader.nulledFields = _parseFieldBitmap(
-        schema,
-        payload.ChangeEventHeader.nulledFields
-    );
-    payload.ChangeEventHeader.diffFields = _parseFieldBitmap(
-        allFields,
-        payload.ChangeEventHeader.diffFields
-    );
-    payload.ChangeEventHeader.changedFields = _parseFieldBitmap(
-        allFields,
-        payload.ChangeEventHeader.changedFields
-    );
-    return {
-        replayId,
-        payload
-    };
-}
-
-function _parseFieldBitmap(allFields, fieldBitmapsAsHex) {
-    if (fieldBitmapsAsHex.length === 0) {
-        return [];
-    }
-    const impactedFields = [];
-    for (let fieldBitmapAsHex of fieldBitmapsAsHex) {
-        let binValue = _hexToBin(fieldBitmapAsHex.substring(2)); // Removing 0x prefix
-        binValue = _reverseBytes(binValue); // Reverse byte order to match expected format
-        // Use bitmap to figure out impacted field indexes
-        for (let i = 0; i < binValue.length; i++) {
-            if (binValue[i] === '1') {
-                impactedFields.push(allFields[i].getName());
-            }
-        }
-    }
-    return impactedFields;
-}
-
-function _reverseBytes(input) {
-    let output = '';
-    for (let i = input.length / 8 - 1; i >= 0; i--) {
-        output += input.substring(i * 8, (i + 1) * 8);
-    }
-    return output;
-}
-
-function _hexToBin(hex) {
-    hex = hex.replaceAll('0', '0000');
-    hex = hex.replaceAll('1', '0001');
-    hex = hex.replaceAll('2', '0010');
-    hex = hex.replaceAll('3', '0011');
-    hex = hex.replaceAll('4', '0100');
-    hex = hex.replaceAll('5', '0101');
-    hex = hex.replaceAll('6', '0110');
-    hex = hex.replaceAll('7', '0111');
-    hex = hex.replaceAll('8', '1000');
-    hex = hex.replaceAll('9', '1001');
-    hex = hex.replaceAll('A', '1010');
-    hex = hex.replaceAll('B', '1011');
-    hex = hex.replaceAll('C', '1100');
-    hex = hex.replaceAll('D', '1101');
-    hex = hex.replaceAll('E', '1110');
-    hex = hex.replaceAll('F', '1111');
-    return hex;
 }
 
 /**
@@ -237,6 +170,7 @@ function _hexToBin(hex) {
  * @param {Object} schema.type
  * @param {Object} payload
  */
+/* eslint-disable no-unused-vars */
 async function publish(client, topicName, schema, payload) {
     return new Promise((resolve, reject) => {
         client.Publish(

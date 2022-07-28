@@ -43,7 +43,7 @@ Once it receives events, it will display them like this:
 Received 1 events, latest replay ID: 193945
 gRPC event payloads:  [
   {
-    "replayId": "3223481",
+    "replayId": "3228574",
     "payload": {
       "ChangeEventHeader": {
         "entityName": "Account",
@@ -52,22 +52,39 @@ gRPC event payloads:  [
         ],
         "changeType": "UPDATE",
         "changeOrigin": "com/salesforce/api/soap/55.0;client=SfdcInternalAPI/",
-        "transactionKey": "0002ac83-fcbd-9443-f901-7d3a380feb2c",
+        "transactionKey": "0003dce7-caed-c47d-eec0-1d1894d2b0f8",
         "sequenceNumber": 1,
-        "commitTimestamp": 1658929209000,
-        "commitNumber": 278750099253,
+        "commitTimestamp": 1659010228000,
+        "commitNumber": 279597718697,
         "commitUser": "0057Q000002aGVkQAM",
         "nulledFields": [],
         "diffFields": [],
         "changedFields": [
           "Rating",
-          "LastModifiedDate"
+          "LastModifiedDate",
+          "BillingAddress.PostalCode"
         ]
       },
       "Name": null,
       "Type": null,
       "ParentId": null,
-      "BillingAddress": null,
+      "BillingAddress": {
+        "com.sforce.eventbus.Address": {
+          "Street": null,
+          "City": null,
+          "State": null,
+          "PostalCode": {
+            "string": "94105"
+          },
+          "Country": null,
+          "StateCode": null,
+          "CountryCode": null,
+          "Latitude": null,
+          "Longitude": null,
+          "Xyz": null,
+          "GeocodeAccuracy": null
+        }
+      },
       "ShippingAddress": null,
       "Phone": null,
       "Fax": null,
@@ -88,7 +105,7 @@ gRPC event payloads:  [
       "CreatedDate": null,
       "CreatedById": null,
       "LastModifiedDate": {
-        "long": 1658929209000
+        "long": 1659010228000
       },
       "LastModifiedById": null,
       "Jigsaw": null,
