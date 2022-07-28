@@ -40,7 +40,7 @@ At this point the script will be on hold and will wait for events.
 Once it receives events, it will display them like this:
 
 ```
-Received 1 events, latest replay ID: 193945
+Received 1 events, latest replay ID: 3228574
 gRPC event payloads:  [
   {
     "replayId": "3228574",
