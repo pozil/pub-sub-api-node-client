@@ -7,7 +7,7 @@ const fs = require('fs');
 const jsforce = require('jsforce');
 const avro = require('avro-js');
 const certifi = require('certifi');
-const { parseEvent } = require('./eventParser.js');
+const { parseEvent, decodeReplayId } = require('./eventParser.js');
 
 // Load config from .env file
 require('dotenv').config();
@@ -118,10 +118,13 @@ async function getEventSchema(client, topicName) {
  * @param {Object} schema.type
  */
 function subscribe(client, topicName, schema) {
-    const subscription = client.Subscribe(); //client here is the grpc client.
-    //Since this is a stream, you can call the write method multiple times.
-    //Only the required data is being passed here, the topic name & the numReqested
-    //Once the system has received the events == to numReqested then the stream will end.
+    const subscription = client.Subscribe();
+    /* client here is the grpc client.
+    Since this is a stream, you can call the write method multiple times.
+    Only the required data is being passed here, the topic name & the numReqested
+    Once the system has received the events == to numReqested then the stream will end.
+    Refer to the readme if you wish to subscribe using a replay ID.
+    */
     const subscribeRequest = {
         topicName,
         numRequested: PUB_SUB_EVENT_RECEIVE_LIMIT
@@ -134,7 +137,7 @@ function subscribe(client, topicName, schema) {
     // Listen to new events.
     subscription.on('data', (data) => {
         if (data.events) {
-            const latestReplayId = data.latestReplayId.readBigUInt64BE();
+            const latestReplayId = decodeReplayId(data.latestReplayId);
             console.log(
                 `Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
             );

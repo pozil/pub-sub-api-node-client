@@ -145,3 +145,19 @@ gRPC stream status:  {
 }
 gRPC stream ended
 ```
+
+## Subscribing With a Replay ID
+
+If you want to subscribe using a Replay ID, configure your subscribe request as following:
+
+```js
+const subscribeRequest = {
+    topicName,
+    numRequested: PUB_SUB_EVENT_RECEIVE_LIMIT,
+    replayId: encodeReplayId(17091914),
+    replayPreset: 2
+};
+```
+
+> **Warning**
+> You must use the `encodeReplayId(replayId)` methods from `eventParser` to encode the replay ID.

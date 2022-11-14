@@ -2,7 +2,7 @@ const avro = require('avro-js');
 
 function parseEvent(schema, event) {
     const allFields = schema.type.getFields();
-    const replayId = event.replayId.readBigUInt64BE().toString();
+    const replayId = decodeReplayId(event.replayId).toString(); // Converting BigInt to string for easy serialization
     const payload = schema.type.fromBuffer(event.event.payload); // This schema is the same which we retreived earlier in the GetSchema rpc.
     payload.ChangeEventHeader.nulledFields = parseFieldBitmaps(
         allFields,
@@ -102,6 +102,26 @@ function reverseBytes(input) {
 }
 
 /**
+ * Decodes the value of a replay ID from a buffer
+ * @param {Buffer} encodedReplayId
+ * @returns {number} decoded replay ID
+ */
+function decodeReplayId(encodedReplayId) {
+    return encodedReplayId.readBigUInt64BE();
+}
+
+/**
+ * Encodes the value of a replay ID
+ * @param {number} replayId
+ * @returns {Buffer} encoded replay ID
+ */
+function encodeReplayId(replayId) {
+    const buf = Buffer.allocUnsafe(8);
+    buf.writeBigUInt64BE(BigInt(replayId), 0);
+    return buf;
+}
+
+/**
  * Converts a hexadecimal string into a string binary representation
  * @param {string} hex
  * @returns
@@ -128,5 +148,7 @@ function hexToBin(hex) {
 }
 
 module.exports = {
-    parseEvent
+    parseEvent,
+    decodeReplayId,
+    encodeReplayId
 };
