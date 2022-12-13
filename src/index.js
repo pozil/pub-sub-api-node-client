@@ -31,7 +31,6 @@ const {
  * @returns the Salesforce connection
  */
 async function connectToSalesforce() {
-    let sfConnection;
     if (SALESFORCE_CLIENT_ID && SALESFORCE_CLIENT_SECRET) {
         // use client_credentials flow to get access token and the userinfo
         const loginResp = await fetch(`${SALESFORCE_LOGIN_URL}/services/oauth2/token`, {
@@ -44,10 +43,6 @@ async function connectToSalesforce() {
         const userinfo = (await (await fetch(`${SALESFORCE_LOGIN_URL}/services/oauth2/userinfo`, {
             headers: {authorization: `Bearer ${access_token}`}
         })).json());
-        sfConnection = new jsforce.Connection({
-            loginUrl: SALESFORCE_LOGIN_URL,
-            accessToken: access_token
-        });
         console.log(
             `Connected to Salesforce org ${loginBody.instance_url} as ${userinfo.preferred_username}`
         );
@@ -57,7 +52,7 @@ async function connectToSalesforce() {
             instanceUrl: loginBody.instance_url
         }
     } else {
-        sfConnection = new jsforce.Connection({
+        const sfConnection = new jsforce.Connection({
             loginUrl: SALESFORCE_LOGIN_URL
         });
         await sfConnection.login(
