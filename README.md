@@ -6,24 +6,35 @@ See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-ap
 
 ## Installation
 
-Create a `.env` file at the root of the project:
+Create a `.env` file at the root of the project for configuration. You may use either username/password or Connected App with the `client_credentials` flow. 
 
+> **Warning:** relying on a username/password Salesforce authentication flow for production is not recommended. Consider switching to JWT auth or similar for extra security.
+
+If using a Change Data Capture topic (like in the sample config), make sure to activate the event in Salesforce Setup > Change Data Capture.
+
+
+### Username / password ###
 ```properties
 SALESFORCE_LOGIN_URL=https://login.salesforce.com
 SALESFORCE_USERNAME=YOUR_SALESFORCE_USERNAME
 SALESFORCE_PASSWORD=YOUR_SALESFORCE_PASSWORD
 SALESFORCE_TOKEN=YOUR_SALESFORCE_USER_SECURITY_TOKEN
-SALESFORCE_CLIENT_ID
-SALESFORCE_CLIENT_SECRET
 PUB_SUB_ENDPOINT=api.pubsub.salesforce.com:7443
 PUB_SUB_PROTO_FILE=pubsub_api.proto
 PUB_SUB_TOPIC_NAME=/data/AccountChangeEvent
 PUB_SUB_EVENT_RECEIVE_LIMIT=1
 ```
 
-> **Warning:** this project relies on a username/password Salesforce authentication flow. This is only recommended for test purposes. Consider switching to JWT auth for extra security.
-
-If using a Change Data Capture topic (like in the sample config), make sure to activate the event in Salesforce Setup > Change Data Capture.
+### client_credentials ###
+```properties
+SALESFORCE_LOGIN_URL=https://login.salesforce.com
+SALESFORCE_CLIENT_ID=CONNECTED_APP_CLIENT_ID
+SALESFORCE_CLIENT_SECRET=CONNECTED_APP_CLIENT_SECRET
+PUB_SUB_ENDPOINT=api.pubsub.salesforce.com:7443
+PUB_SUB_PROTO_FILE=pubsub_api.proto
+PUB_SUB_TOPIC_NAME=/data/AccountChangeEvent
+PUB_SUB_EVENT_RECEIVE_LIMIT=1
+```
 
 ## Execution
 
