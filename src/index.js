@@ -8,6 +8,7 @@ const jsforce = require('jsforce');
 const avro = require('avro-js');
 const certifi = require('certifi');
 const { parseEvent, decodeReplayId } = require('./eventParser.js');
+const fetch = require("node-fetch");
 
 // Load config from .env file
 require('dotenv').config();
@@ -16,6 +17,8 @@ const {
     SALESFORCE_USERNAME,
     SALESFORCE_PASSWORD,
     SALESFORCE_TOKEN,
+    SALESFORCE_CLIENT_ID,
+    SALESFORCE_CLIENT_SECRET,
     PUB_SUB_ENDPOINT,
     PUB_SUB_PROTO_FILE,
     PUB_SUB_TOPIC_NAME,
@@ -28,17 +31,48 @@ const {
  * @returns the Salesforce connection
  */
 async function connectToSalesforce() {
-    const sfConnection = new jsforce.Connection({
-        loginUrl: SALESFORCE_LOGIN_URL
-    });
-    await sfConnection.login(
-        SALESFORCE_USERNAME,
-        SALESFORCE_PASSWORD + SALESFORCE_TOKEN
-    );
-    console.log(
-        `Connected to Salesforce org ${sfConnection.instanceUrl} as ${SALESFORCE_USERNAME}`
-    );
-    return sfConnection;
+    let sfConnection;
+    if (SALESFORCE_CLIENT_ID && SALESFORCE_CLIENT_SECRET) {
+        // use client_credentials flow to get access token and the userinfo
+        const loginResp = await fetch(`${SALESFORCE_LOGIN_URL}/services/oauth2/token`, {
+            method: "post",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: `grant_type=client_credentials&client_id=${SALESFORCE_CLIENT_ID}&client_secret=${SALESFORCE_CLIENT_SECRET}`
+        });
+        const loginBody = await loginResp.json();
+        const access_token = loginBody.access_token;
+        const userinfo = (await (await fetch(`${SALESFORCE_LOGIN_URL}/services/oauth2/userinfo`, {
+            headers: {authorization: `Bearer ${access_token}`}
+        })).json());
+        sfConnection = new jsforce.Connection({
+            loginUrl: SALESFORCE_LOGIN_URL,
+            accessToken: access_token
+        });
+        console.log(
+            `Connected to Salesforce org ${loginBody.instance_url} as ${userinfo.preferred_username}`
+        );
+        return {
+            accessToken: access_token,
+            organizationId: userinfo.organization_id, 
+            instanceUrl: loginBody.instance_url
+        }
+    } else {
+        sfConnection = new jsforce.Connection({
+            loginUrl: SALESFORCE_LOGIN_URL
+        });
+        await sfConnection.login(
+            SALESFORCE_USERNAME,
+            SALESFORCE_PASSWORD + SALESFORCE_TOKEN
+        );
+        console.log(
+            `Connected to Salesforce org ${sfConnection.instanceUrl} as ${SALESFORCE_USERNAME}`
+        );
+        return {
+            accessToken: sfConnection.accessToken,
+            instanceUrl: sfConnection.userInfo.instanceUrl,
+            organizationId: sfConnection.userInfo.organizationId
+        };
+    }    
 }
 
 /**
@@ -46,7 +80,7 @@ async function connectToSalesforce() {
  * @param {jsforce.Connection} sfConnection the Salesforce connection
  * @returns a gRPC client
  */
-function connectToPubSubApi(sfConnection) {
+function connectToPubSubApi(metadata) {
     // Read certificates
     const rootCert = fs.readFileSync(certifi);
 
@@ -58,9 +92,9 @@ function connectToPubSubApi(sfConnection) {
     // Prepare gRPC connection
     const metaCallback = (_params, callback) => {
         const meta = new grpc.Metadata();
-        meta.add('accesstoken', sfConnection.accessToken);
-        meta.add('instanceurl', sfConnection.instanceUrl);
-        meta.add('tenantid', sfConnection.userInfo.organizationId);
+        meta.add('accesstoken', metadata.accessToken);
+        meta.add('instanceurl', metadata.instanceUrl);
+        meta.add('tenantid', metadata.organizationId);
         callback(null, meta);
     };
     const callCreds =
@@ -200,8 +234,8 @@ async function publish(client, topicName, schema, payload) {
 
 async function run() {
     try {
-        const sfConnection = await connectToSalesforce();
-        const client = connectToPubSubApi(sfConnection);
+        const metadata = await connectToSalesforce();
+        const client = connectToPubSubApi(metadata);
         const topicSchema = await getEventSchema(client, PUB_SUB_TOPIC_NAME);
         subscribe(client, PUB_SUB_TOPIC_NAME, topicSchema);
     } catch (err) {
