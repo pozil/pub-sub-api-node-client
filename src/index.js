@@ -8,7 +8,7 @@ const jsforce = require('jsforce');
 const avro = require('avro-js');
 const certifi = require('certifi');
 const { parseEvent, decodeReplayId } = require('./eventParser.js');
-const fetch = require("node-fetch");
+const fetch = require('node-fetch');
 
 // Load config from .env file
 require('dotenv').config();
@@ -33,24 +33,31 @@ const {
 async function connectToSalesforce() {
     if (SALESFORCE_CLIENT_ID && SALESFORCE_CLIENT_SECRET) {
         // use client_credentials flow to get access token and the userinfo
-        const loginResp = await fetch(`${SALESFORCE_LOGIN_URL}/services/oauth2/token`, {
-            method: "post",
-            headers: {"Content-Type": "application/x-www-form-urlencoded"},
-            body: `grant_type=client_credentials&client_id=${SALESFORCE_CLIENT_ID}&client_secret=${SALESFORCE_CLIENT_SECRET}`
-        });
+        const loginResp = await fetch(
+            `${SALESFORCE_LOGIN_URL}/services/oauth2/token`,
+            {
+                method: 'post',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `grant_type=client_credentials&client_id=${SALESFORCE_CLIENT_ID}&client_secret=${SALESFORCE_CLIENT_SECRET}`
+            }
+        );
         const loginBody = await loginResp.json();
         const access_token = loginBody.access_token;
-        const userinfo = (await (await fetch(`${SALESFORCE_LOGIN_URL}/services/oauth2/userinfo`, {
-            headers: {authorization: `Bearer ${access_token}`}
-        })).json());
+        const userinfo = await (
+            await fetch(`${SALESFORCE_LOGIN_URL}/services/oauth2/userinfo`, {
+                headers: { authorization: `Bearer ${access_token}` }
+            })
+        ).json();
         console.log(
             `Connected to Salesforce org ${loginBody.instance_url} as ${userinfo.preferred_username}`
         );
         return {
             accessToken: access_token,
-            organizationId: userinfo.organization_id, 
+            organizationId: userinfo.organization_id,
             instanceUrl: loginBody.instance_url
-        }
+        };
     } else {
         const sfConnection = new jsforce.Connection({
             loginUrl: SALESFORCE_LOGIN_URL
@@ -64,10 +71,10 @@ async function connectToSalesforce() {
         );
         return {
             accessToken: sfConnection.accessToken,
-            instanceUrl: sfConnection.userInfo.instanceUrl,
+            instanceUrl: sfConnection.instanceUrl,
             organizationId: sfConnection.userInfo.organizationId
         };
-    }    
+    }
 }
 
 /**
