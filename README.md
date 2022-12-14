@@ -8,7 +8,8 @@ See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-ap
 
 Create a `.env` file at the root of the project for configuration. You may use either username/password or Connected App with the `client_credentials` flow. 
 
-> **Warning:** relying on a username/password Salesforce authentication flow for production is not recommended. Consider switching to JWT auth or similar for extra security.
+> **Warning**<br/>
+> Relying on a username/password Salesforce authentication flow for production is not recommended. Consider switching to JWT auth or similar for extra security.
 
 If using a Change Data Capture topic (like in the sample config), make sure to activate the event in Salesforce Setup > Change Data Capture.
 
@@ -172,5 +173,5 @@ const subscribeRequest = {
 };
 ```
 
-> **Warning**
+> **Warning**<br/>
 > You must use the `encodeReplayId(replayId)` methods from `eventParser` to encode the replay ID.
