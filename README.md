@@ -6,15 +6,15 @@ See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-ap
 
 ## Installation
 
-Create a `.env` file at the root of the project for configuration. You may use either username/password or Connected App with the `client_credentials` flow. 
+Create a `.env` file at the root of the project for configuration. You may use either username/password or Connected App with the `client_credentials` flow.
 
 > **Warning**<br/>
 > Relying on a username/password Salesforce authentication flow for production is not recommended. Consider switching to JWT auth or similar for extra security.
 
 If using a Change Data Capture topic (like in the sample config), make sure to activate the event in Salesforce Setup > Change Data Capture.
 
+### Username / password
 
-### Username / password ###
 ```properties
 SALESFORCE_LOGIN_URL=https://login.salesforce.com
 SALESFORCE_USERNAME=YOUR_SALESFORCE_USERNAME
@@ -26,7 +26,8 @@ PUB_SUB_TOPIC_NAME=/data/AccountChangeEvent
 PUB_SUB_EVENT_RECEIVE_LIMIT=1
 ```
 
-### client_credentials ###
+### client_credentials
+
 ```properties
 SALESFORCE_LOGIN_URL=https://login.salesforce.com
 SALESFORCE_CLIENT_ID=CONNECTED_APP_CLIENT_ID
