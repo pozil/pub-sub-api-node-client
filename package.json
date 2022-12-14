@@ -16,7 +16,8 @@
         "avro-js": "^1.11.1",
         "certifi": "^14.5.15",
         "dotenv": "^16.0.3",
-        "jsforce": "^1.11.0"
+        "jsforce": "^1.11.0",
+        "node-fetch": "^2.6.7"
     },
     "devDependencies": {
         "eslint": "^8.27.0",
