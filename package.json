@@ -11,8 +11,8 @@
     "author": "pozil",
     "license": "CC0-1.0",
     "dependencies": {
-        "@grpc/grpc-js": "^1.7.3",
-        "@grpc/proto-loader": "^0.7.3",
+        "@grpc/grpc-js": "^1.8.0",
+        "@grpc/proto-loader": "^0.7.4",
         "avro-js": "^1.11.1",
         "certifi": "^14.5.15",
         "dotenv": "^16.0.3",
@@ -20,8 +20,8 @@
         "node-fetch": "^2.6.7"
     },
     "devDependencies": {
-        "eslint": "^8.27.0",
-        "prettier": "^2.7.1"
+        "eslint": "^8.29.0",
+        "prettier": "^2.8.1"
     },
     "volta": {
         "node": "16.13.1",
