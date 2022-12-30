@@ -17,10 +17,10 @@
         "certifi": "^14.5.15",
         "dotenv": "^16.0.3",
         "jsforce": "^1.11.0",
-        "node-fetch": "^2.6.7"
+        "node-fetch": "^3.3.0"
     },
     "devDependencies": {
-        "eslint": "^8.29.0",
+        "eslint": "^8.30.0",
         "prettier": "^2.8.1"
     },
     "volta": {

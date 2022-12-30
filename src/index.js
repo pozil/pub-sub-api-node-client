@@ -8,7 +8,7 @@ const jsforce = require('jsforce');
 const avro = require('avro-js');
 const certifi = require('certifi');
 const { parseEvent, decodeReplayId } = require('./eventParser.js');
-const fetch = require('node-fetch');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 // Load config from .env file
 require('dotenv').config();
