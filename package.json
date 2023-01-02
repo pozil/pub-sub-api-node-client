@@ -1,6 +1,6 @@
 {
     "name": "salesforce-pubsub-api-client",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "type": "module",
     "description": "A node client for the Salesforce Pub/Sub API",
     "main": "src/client.js",
