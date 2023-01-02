@@ -1,16 +1,18 @@
-# Node gRPC client for the Salesforce Pub/Sub API
+[![npm](https://img.shields.io/npm/v/salesforce-pubsub-api-client)](https://www.npmjs.com/package/salesforce-pubsub-api-client)
 
-See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-api) for more information on the Pub/Sub API.
+# Node client for the Salesforce Pub/Sub API
+
+See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-api) for more information on the Salesforce gRPC-based Pub/Sub API.
 
 ## Installation
 
-Install the client library with `npm install pubsub-api-client`.
+Install the client library with `npm install salesforce-pubsub-api-client`.
 
 Create a `.env` file at the root of the project for configuration. You may use either of these authentication flows:
 
--   Username/password authentication flow
--   OAuth 2.0 client credentials flow
--   OAuth 2.0 JWT Bearer Flow flow
+-   Username/password authentication
+-   OAuth 2.0 client credentials
+-   OAuth 2.0 JWT Bearer
 
 > **Warning**<br/>
 > Relying on a username/password authentication flow for production is not recommended. Consider switching to JWT auth or similar for extra security.
