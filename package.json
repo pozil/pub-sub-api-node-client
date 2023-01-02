@@ -1,15 +1,20 @@
 {
-    "name": "grpc-node-client",
-    "version": "1.4.0",
-    "private": true,
-    "description": "A sample node gRPC client for the Salesforce Pub/Sub API",
+    "name": "salesforce-pubsub-api-client",
+    "version": "2.0.0",
+    "type": "module",
+    "description": "A node client for the Salesforce Pub/Sub API",
+    "main": "src/client.js",
     "scripts": {
-        "start": "node src/index.js",
         "prettier": "prettier --write '**/*.{css,html,js,json,md,yaml,yml}'",
         "lint": "eslint ."
     },
     "author": "pozil",
     "license": "CC0-1.0",
+    "homepage": "https://github.com/pozil/pub-sub-api-node-client",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/pozil/pub-sub-api-node-client"
+    },
     "dependencies": {
         "@grpc/grpc-js": "^1.8.0",
         "@grpc/proto-loader": "^0.7.4",
@@ -24,7 +29,13 @@
         "prettier": "^2.8.1"
     },
     "volta": {
-        "node": "16.13.1",
-        "npm": "8.1.2"
-    }
+        "node": "18.12.1",
+        "npm": "8.19.2"
+    },
+    "keywords": [
+        "salesforce",
+        "pubsub",
+        "api",
+        "grpc"
+    ]
 }
