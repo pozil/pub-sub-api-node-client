@@ -61,7 +61,7 @@ Here's an example that will get you started quickly. It listens to a single acco
 1. Create a `sample.js` file with this content:
 
     ```js
-    import PubSubApiClient from './client.js';
+    import PubSubApiClient from 'salesforce-pubsub-api-client';
 
     async function run() {
         try {
