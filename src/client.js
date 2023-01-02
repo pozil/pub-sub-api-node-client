@@ -1,6 +1,9 @@
 import crypto from 'crypto';
 import EventEmitter from 'events';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 import avro from 'avro-js';
 import certifi from 'certifi';
 import grpc from '@grpc/grpc-js';
@@ -74,7 +77,12 @@ export default class PubSubApiClient {
             const rootCert = fs.readFileSync(certifi);
 
             // Load proto definition
-            const packageDef = protoLoader.loadSync('pubsub_api.proto', {});
+            const curDirName = path.dirname(fileURLToPath(import.meta.url));
+            const protoFilePath = path.resolve(
+                curDirName,
+                '../pubsub_api.proto'
+            );
+            const packageDef = protoLoader.loadSync(protoFilePath, {});
             const grpcObj = grpc.loadPackageDefinition(packageDef);
             const sfdcPackage = grpcObj.eventbus.v1;
 
