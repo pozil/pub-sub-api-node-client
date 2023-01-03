@@ -4,18 +4,30 @@ export function parseEvent(schema, event) {
     const allFields = schema.type.getFields();
     const replayId = decodeReplayId(event.replayId);
     const payload = schema.type.fromBuffer(event.event.payload); // This schema is the same which we retreived earlier in the GetSchema rpc.
-    payload.ChangeEventHeader.nulledFields = parseFieldBitmaps(
-        allFields,
-        payload.ChangeEventHeader.nulledFields
-    );
-    payload.ChangeEventHeader.diffFields = parseFieldBitmaps(
-        allFields,
-        payload.ChangeEventHeader.diffFields
-    );
-    payload.ChangeEventHeader.changedFields = parseFieldBitmaps(
-        allFields,
-        payload.ChangeEventHeader.changedFields
-    );
+    try {
+        payload.ChangeEventHeader.nulledFields = parseFieldBitmaps(
+            allFields,
+            payload.ChangeEventHeader.nulledFields
+        );
+    } catch (error) {
+        throw new Error('Failed to parse nulledFields', { cause: error });
+    }
+    try {
+        payload.ChangeEventHeader.diffFields = parseFieldBitmaps(
+            allFields,
+            payload.ChangeEventHeader.diffFields
+        );
+    } catch (error) {
+        throw new Error('Failed to parse diffFields', { cause: error });
+    }
+    try {
+        payload.ChangeEventHeader.changedFields = parseFieldBitmaps(
+            allFields,
+            payload.ChangeEventHeader.changedFields
+        );
+    } catch (error) {
+        throw new Error('Failed to parse changedFields', { cause: error });
+    }
     return {
         replayId,
         payload
@@ -85,7 +97,7 @@ function getFieldNamesFromBitmap(fields, fieldBitmapAsHex) {
     binValue = reverseBytes(binValue); // Reverse byte order to match expected format
     // Use bitmap to figure out field names based on index
     const fieldNames = [];
-    for (let i = 0; i < binValue.length; i++) {
+    for (let i = 0; i < binValue.length && i < fields.length; i++) {
         if (binValue[i] === '1') {
             fieldNames.push(fields[i].getName());
         }
