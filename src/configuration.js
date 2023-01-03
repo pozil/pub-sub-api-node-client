@@ -1,7 +1,8 @@
 import * as dotenv from 'dotenv';
 import fs from 'fs';
 
-const AUTH_USERNAME_PASSWORD = 'username-password',
+const AUTH_USER_SUPPLIED = 'user-supplied',
+    AUTH_USERNAME_PASSWORD = 'username-password',
     AUTH_OAUTH_CLIENT_CREDENTIALS = 'oauth-client-credentials',
     AUTH_OAUTH_JWT_BEARER = 'oauth-jwt-bearer';
 
@@ -12,28 +13,31 @@ export default class Configuration {
         // Check mandatory variables
         Configuration.#checkMandatoryVariables([
             'SALESFORCE_AUTH_TYPE',
-            'SALESFORCE_LOGIN_URL',
             'PUB_SUB_ENDPOINT'
         ]);
+        // Check variable for specific auth types
         if (Configuration.isUsernamePasswordAuth()) {
             Configuration.#checkMandatoryVariables([
+                'SALESFORCE_LOGIN_URL',
                 'SALESFORCE_USERNAME',
                 'SALESFORCE_PASSWORD',
                 'SALESFORCE_TOKEN'
             ]);
         } else if (Configuration.isOAuthClientCredentialsAuth()) {
             Configuration.#checkMandatoryVariables([
+                'SALESFORCE_LOGIN_URL',
                 'SALESFORCE_CLIENT_ID',
                 'SALESFORCE_CLIENT_SECRET'
             ]);
         } else if (Configuration.isOAuthJwtBearerAuth()) {
             Configuration.#checkMandatoryVariables([
+                'SALESFORCE_LOGIN_URL',
                 'SALESFORCE_CLIENT_ID',
                 'SALESFORCE_USERNAME',
                 'SALESFORCE_PRIVATE_KEY_FILE'
             ]);
             Configuration.getSfPrivateKey();
-        } else {
+        } else if (!Configuration.isUserSuppliedAuth()) {
             throw new Error(
                 `Invalid value for SALESFORCE_AUTH_TYPE environment variable: ${Configuration.getAuthType()}`
             );
@@ -77,6 +81,10 @@ export default class Configuration {
 
     static getPubSubEndpoint() {
         return process.env.PUB_SUB_ENDPOINT;
+    }
+
+    static isUserSuppliedAuth() {
+        return Configuration.getAuthType() === AUTH_USER_SUPPLIED;
     }
 
     static isUsernamePasswordAuth() {

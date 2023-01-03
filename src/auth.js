@@ -109,7 +109,7 @@ export default class SalesforceAuth {
             );
         }
         const { access_token, instance_url } = await loginResponse.json();
-        // Get user info
+        // Get org and user info
         const userInfoResponse = await fetch(
             `${Configuration.getSfLoginUrl()}/services/oauth2/userinfo`,
             {

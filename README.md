@@ -8,16 +8,40 @@ See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-ap
 
 Install the client library with `npm install salesforce-pubsub-api-client`.
 
-Create a `.env` file at the root of the project for configuration. You may use either of these authentication flows:
+Create a `.env` file at the root of the project for configuration.
 
--   Username/password authentication
+Pick one of these authentication flows and fill the relevant configuration:
+
+-   User supplied authentication
+-   Username/password authentication (recommended for tests)
 -   OAuth 2.0 client credentials
--   OAuth 2.0 JWT Bearer
+-   OAuth 2.0 JWT Bearer (recommended for production)
 
-> **Warning**<br/>
-> Relying on a username/password authentication flow for production is not recommended. Consider switching to JWT auth or similar for extra security.
+### User supplied authentication
+
+If you already have a Salesforce client in your app, you can reuse its authentication information. You'll only need this minimalistic configuration:
+
+```properties
+SALESFORCE_AUTH_TYPE=user-supplied
+
+PUB_SUB_ENDPOINT=api.pubsub.salesforce.com:7443
+```
+
+When connecting to the Pub/Sub API, use the following method instead of the standard `connect()` method:
+
+```js
+await client.connectWithAuth(
+    accessToken,
+    instanceUrl,
+    organizationId,
+    username
+);
+```
 
 ### Username/password flow
+
+> **Warning**<br/>
+> Relying on a username/password authentication flow for production is not recommended. Consider switching to JWT auth for extra security.
 
 ```properties
 SALESFORCE_AUTH_TYPE=username-password
@@ -40,7 +64,9 @@ SALESFORCE_CLIENT_SECRET=YOUR_CONNECTED_APP_CLIENT_SECRET
 PUB_SUB_ENDPOINT=api.pubsub.salesforce.com:7443
 ```
 
-### OAuth 2.0 JWT Bearer Flow
+### OAuth 2.0 JWT bearer flow
+
+This is the most secure authentication option. Recommended for production use.
 
 ```properties
 SALESFORCE_AUTH_TYPE=oauth-jwt-bearer
@@ -56,7 +82,7 @@ PUB_SUB_ENDPOINT=api.pubsub.salesforce.com:7443
 
 Here's an example that will get you started quickly. It listens to a single account change event.
 
-1. Activate account change events in **Salesforce Setup > Change Data Capture**.
+1. Activate Account change events in **Salesforce Setup > Change Data Capture**.
 
 1. Create a `sample.js` file with this content:
 

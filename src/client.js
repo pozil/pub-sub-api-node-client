@@ -54,10 +54,16 @@ export default class PubSubApiClient {
     }
 
     /**
-     * Connects to the Pub/Sub API
+     * Authenticates with Salesforce then, connects to the Pub/Sub API
      * @returns {Promise<void>} Promise that resolves once the connection is established
      */
     async connect() {
+        if (Configuration.isUserSuppliedAuth()) {
+            throw new Error(
+                'You selected user-supplied authentication mode so you cannot use the "connect()" method. Use "connectWithAuth(...)" instead.'
+            );
+        }
+
         // Connect to Salesforce to obtain an access token
         let conMetadata;
         try {
@@ -70,7 +76,32 @@ export default class PubSubApiClient {
                 cause: error
             });
         }
+        return this.#connectToPubSubApi(conMetadata);
+    }
 
+    /**
+     * Connects to the Pub/Sub API with user-supplied authentication
+     * @param {string} accessToken
+     * @param {string} instanceUrl
+     * @param {string} organizationId
+     * @param {string} username
+     * @returns {Promise<void>} Promise that resolves once the connection is established
+     */
+    async connectWithAuth(accessToken, instanceUrl, organizationId, username) {
+        return this.#connectToPubSubApi({
+            accessToken,
+            instanceUrl,
+            organizationId,
+            username
+        });
+    }
+
+    /**
+     * Connects to the Pub/Sub API
+     * @param {import('./auth.js').ConnectionMetadata} conMetadata
+     * @returns {Promise<void>} Promise that resolves once the connection is established
+     */
+    async #connectToPubSubApi(conMetadata) {
         // Connect to Pub/Sub API
         try {
             // Read certificates
