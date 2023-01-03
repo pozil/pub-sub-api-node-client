@@ -4,7 +4,20 @@
 
 See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-api) for more information on the Salesforce gRPC-based Pub/Sub API.
 
-## Installation
+-   [Installation and Configuration](#installation-and-configuration)
+    -   [User supplied authentication](#user-supplied-authentication)
+    -   [Username/password flow](#usernamepassword-flow)
+    -   [OAuth 2.0 client credentials flow (client_credentials)](#oauth-20-client-credentials-flow-client_credentials)
+    -   [OAuth 2.0 JWT bearer flow](#oauth-20-jwt-bearer-flow)
+-   [Basic Example](#basic-example)
+-   [Other Examples](#other-examples)
+    -   [Publish a platform event](#publish-a-platform-event)
+    -   [Subscribe with a replay ID](#subscribe-with-a-replay-id)
+    -   [Subscribe to past events in retention window](#subscribe-to-past-events-in-retention-window)
+    -   [Handle gRPC stream lifecycle events](#handle-grpc-stream-lifecycle-events)
+    -   [Use a custom logger](#use-a-custom-logger)
+
+## Installation and Configuration
 
 Install the client library with `npm install salesforce-pubsub-api-client`.
 
@@ -17,9 +30,12 @@ Pick one of these authentication flows and fill the relevant configuration:
 -   OAuth 2.0 client credentials
 -   OAuth 2.0 JWT Bearer (recommended for production)
 
+> **Note**<br/>
+> The default client logger is fine for a test environement but you'll want to switch to a [custom logger](#use-a-custom-logger) with asynchronous logging for increased performance.
+
 ### User supplied authentication
 
-If you already have a Salesforce client in your app, you can reuse its authentication information. You'll only need this minimalistic configuration:
+If you already have a Salesforce client in your app, you can reuse its authentication information. You only need this minimal configuration:
 
 ```properties
 SALESFORCE_AUTH_TYPE=user-supplied
@@ -27,7 +43,7 @@ SALESFORCE_AUTH_TYPE=user-supplied
 PUB_SUB_ENDPOINT=api.pubsub.salesforce.com:7443
 ```
 
-When connecting to the Pub/Sub API, use the following method instead of the standard `connect()` method:
+When connecting to the Pub/Sub API, use the following method instead of the standard `connect()` method to specify authentication information:
 
 ```js
 await client.connectWithAuth(
@@ -260,4 +276,19 @@ eventEmitter.on('error', (error) => {
 eventEmitter.on('status', (status) => {
     console.log('gRPC stream status: ', status);
 });
+```
+
+### Use a custom logger
+
+The client logs output to the console by default but you can provide your favorite logger in the client constructor.
+
+When in production, asynchronous logging is preferable for performance reasons.
+
+For example:
+
+```js
+import pino from 'pino';
+
+const logger = pino();
+const client = new PubSubApiClient(logger);
 ```
