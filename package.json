@@ -10,6 +10,7 @@
     "scripts": {
         "prettier": "prettier --write '**/*.{css,html,js,json,md,yaml,yml}'",
         "lint": "eslint .",
+        "postinstall": "husky install",
         "precommit": "lint-staged"
     },
     "dependencies": {
