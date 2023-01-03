@@ -1,6 +1,6 @@
 {
     "name": "salesforce-pubsub-api-client",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "type": "module",
     "description": "A node client for the Salesforce Pub/Sub API",
     "author": "pozil",
@@ -10,7 +10,7 @@
     "scripts": {
         "prettier": "prettier --write '**/*.{css,html,js,json,md,yaml,yml}'",
         "lint": "eslint .",
-        "postinstall": "husky install",
+        "prepare": "husky install",
         "precommit": "lint-staged"
     },
     "dependencies": {
