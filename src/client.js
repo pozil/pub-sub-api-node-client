@@ -25,13 +25,12 @@ import SalesforceAuth from './auth.js';
  * @property {string} correlationKey
  */
 
-// Load config immediately at import time and stop app if config is invalid
-try {
-    Configuration.load();
-} catch (e) {
-    console.error(e);
-    process.exit(-1);
-}
+/**
+ * @typedef {Object} Logger
+ * @property {Function} debug
+ * @property {Function} info
+ * @property {Function} error
+ */
 
 /**
  * Client for the Salesforce Pub/Sub API
@@ -49,8 +48,24 @@ export default class PubSubApiClient {
      */
     #schemaChache;
 
-    constructor() {
+    #logger;
+
+    /**
+     * Builds a new Pub/Sub API client
+     * @param {Logger} logger an optional custom logger. The client uses the console if no value is supplied.
+     */
+    constructor(logger = console) {
+        this.#logger = logger;
         this.#schemaChache = new Map();
+        // Check and load config
+        try {
+            Configuration.load();
+        } catch (error) {
+            this.#logger.error(error);
+            throw new Error('Failed to initialize Pub/Sub API client', {
+                cause: error
+            });
+        }
     }
 
     /**
@@ -68,7 +83,7 @@ export default class PubSubApiClient {
         let conMetadata;
         try {
             conMetadata = await SalesforceAuth.authenticate();
-            console.log(
+            this.#logger.info(
                 `Connected to Salesforce org ${conMetadata.instanceUrl} as ${conMetadata.username}`
             );
         } catch (error) {
@@ -137,7 +152,7 @@ export default class PubSubApiClient {
                 Configuration.getPubSubEndpoint(),
                 combCreds
             );
-            console.log(
+            this.#logger.info(
                 `Connected to Pub/Sub API endpoint ${Configuration.getPubSubEndpoint()}`
             );
         } catch (error) {
@@ -208,7 +223,7 @@ export default class PubSubApiClient {
 
             const subscription = this.#client.Subscribe();
             subscription.write(subscribeRequest);
-            console.log(
+            this.#logger.info(
                 `Subscribe request sent for ${subscribeRequest.numRequested} events from ${subscribeRequest.topicName}...`
             );
 
@@ -217,11 +232,12 @@ export default class PubSubApiClient {
             subscription.on('data', (data) => {
                 if (data.events) {
                     const latestReplayId = decodeReplayId(data.latestReplayId);
-                    console.log(
+                    this.#logger.info(
                         `Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
                     );
                     data.events.forEach((event) => {
                         const parsedEvent = parseEvent(schema, event);
+                        this.#logger.debug(parsedEvent);
                         eventEmitter.emit('data', parsedEvent);
                     });
                 } else {
@@ -229,15 +245,17 @@ export default class PubSubApiClient {
                 }
             });
             subscription.on('end', () => {
-                console.log('gRPC stream ended');
+                this.#logger.info('gRPC stream ended');
                 eventEmitter.emit('end');
             });
             subscription.on('error', (error) => {
-                console.error('gRPC stream error: ', JSON.stringify(error));
+                this.#logger.error(
+                    `gRPC stream error: ${JSON.stringify(error)}`
+                );
                 eventEmitter.emit('error', error);
             });
             subscription.on('status', (status) => {
-                console.log('gRPC stream status: ', status);
+                this.#logger.info(`gRPC stream status: ${status}`);
                 eventEmitter.emit('status', status);
             });
             return eventEmitter;
@@ -335,7 +353,9 @@ export default class PubSubApiClient {
                             reject(schemaError);
                         } else {
                             const schemaType = avro.parse(res.schemaJson);
-                            console.log(`Topic schema loaded: ${topicName}`);
+                            this.#logger.info(
+                                `Topic schema loaded: ${topicName}`
+                            );
                             resolve({
                                 id: schemaId,
                                 type: schemaType
