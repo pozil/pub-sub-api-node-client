@@ -126,29 +126,31 @@ function parseEvent(schema, event) {
   const allFields = schema.type.getFields();
   const replayId = decodeReplayId(event.replayId);
   const payload = schema.type.fromBuffer(event.event.payload);
-  try {
-    payload.ChangeEventHeader.nulledFields = parseFieldBitmaps(
-      allFields,
-      payload.ChangeEventHeader.nulledFields
-    );
-  } catch (error) {
-    throw new Error("Failed to parse nulledFields", { cause: error });
-  }
-  try {
-    payload.ChangeEventHeader.diffFields = parseFieldBitmaps(
-      allFields,
-      payload.ChangeEventHeader.diffFields
-    );
-  } catch (error) {
-    throw new Error("Failed to parse diffFields", { cause: error });
-  }
-  try {
-    payload.ChangeEventHeader.changedFields = parseFieldBitmaps(
-      allFields,
-      payload.ChangeEventHeader.changedFields
-    );
-  } catch (error) {
-    throw new Error("Failed to parse changedFields", { cause: error });
+  if (payload.ChangeEventHeader) {
+    try {
+      payload.ChangeEventHeader.nulledFields = parseFieldBitmaps(
+        allFields,
+        payload.ChangeEventHeader.nulledFields
+      );
+    } catch (error) {
+      throw new Error("Failed to parse nulledFields", { cause: error });
+    }
+    try {
+      payload.ChangeEventHeader.diffFields = parseFieldBitmaps(
+        allFields,
+        payload.ChangeEventHeader.diffFields
+      );
+    } catch (error) {
+      throw new Error("Failed to parse diffFields", { cause: error });
+    }
+    try {
+      payload.ChangeEventHeader.changedFields = parseFieldBitmaps(
+        allFields,
+        payload.ChangeEventHeader.changedFields
+      );
+    } catch (error) {
+      throw new Error("Failed to parse changedFields", { cause: error });
+    }
   }
   return {
     replayId,
@@ -400,7 +402,9 @@ var PubSubApiClient = class {
   async #connectToPubSubApi(conMetadata) {
     try {
       const rootCert = fs2.readFileSync(certifi);
-      const protoFilePath = fileURLToPath(new URL("./pubsub_api.proto?hash=961def31", import.meta.url));
+      const protoFilePath = fileURLToPath(
+        new URL("./pubsub_api.proto?hash=961def31", import.meta.url)
+      );
       const packageDef = protoLoader.loadSync(protoFilePath, {});
       const grpcObj = grpc.loadPackageDefinition(packageDef);
       const sfdcPackage = grpcObj.eventbus.v1;
