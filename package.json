@@ -6,12 +6,20 @@
     "author": "pozil",
     "license": "CC0-1.0",
     "homepage": "https://github.com/pozil/pub-sub-api-node-client",
-    "main": "src/client.js",
+    "main": "dist/client.js",
+    "exports": {
+        ".": {
+            "require": "./dist/client.cjs",
+            "import": "./dist/client.js"
+        }
+    },
     "scripts": {
+        "build": "tsup && tsc",
         "prettier": "prettier --write '**/*.{css,html,js,json,md,yaml,yml}'",
         "lint": "eslint .",
         "prepare": "husky install",
-        "precommit": "lint-staged"
+        "precommit": "lint-staged",
+        "prepublishOnly": "npm run build"
     },
     "dependencies": {
         "@grpc/grpc-js": "^1.8.0",
@@ -20,16 +28,19 @@
         "certifi": "^14.5.15",
         "dotenv": "^16.0.3",
         "jsforce": "^1.11.0",
-        "node-fetch": "^3.3.0"
+        "undici": "^5.15.0"
     },
     "devDependencies": {
+        "@chialab/esbuild-plugin-meta-url": "^0.17.2",
         "eslint": "^8.31.0",
         "husky": "^8.0.3",
         "lint-staged": "^13.1.0",
-        "prettier": "^2.8.1"
+        "prettier": "^2.8.1",
+        "tsup": "^6.5.0",
+        "typescript": "^4.9.4"
     },
     "lint-staged": {
-        "**/*.{css,html,js,json,md,yaml,yml}": [
+        "**/src/*.{css,html,js,json,md,yaml,yml}": [
             "prettier --write"
         ],
         "**/src/**/*.js": [
@@ -51,7 +62,7 @@
         "grpc"
     ],
     "files": [
-        "src/*",
+        "dist/*",
         "pubsub_api.proto"
     ]
 }
