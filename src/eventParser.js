@@ -4,29 +4,32 @@ export function parseEvent(schema, event) {
     const allFields = schema.type.getFields();
     const replayId = decodeReplayId(event.replayId);
     const payload = schema.type.fromBuffer(event.event.payload); // This schema is the same which we retreived earlier in the GetSchema rpc.
-    try {
-        payload.ChangeEventHeader.nulledFields = parseFieldBitmaps(
-            allFields,
-            payload.ChangeEventHeader.nulledFields
-        );
-    } catch (error) {
-        throw new Error('Failed to parse nulledFields', { cause: error });
-    }
-    try {
-        payload.ChangeEventHeader.diffFields = parseFieldBitmaps(
-            allFields,
-            payload.ChangeEventHeader.diffFields
-        );
-    } catch (error) {
-        throw new Error('Failed to parse diffFields', { cause: error });
-    }
-    try {
-        payload.ChangeEventHeader.changedFields = parseFieldBitmaps(
-            allFields,
-            payload.ChangeEventHeader.changedFields
-        );
-    } catch (error) {
-        throw new Error('Failed to parse changedFields', { cause: error });
+    // Parse CDC header if available
+    if (payload.ChangeEventHeader) {
+        try {
+            payload.ChangeEventHeader.nulledFields = parseFieldBitmaps(
+                allFields,
+                payload.ChangeEventHeader.nulledFields
+            );
+        } catch (error) {
+            throw new Error('Failed to parse nulledFields', { cause: error });
+        }
+        try {
+            payload.ChangeEventHeader.diffFields = parseFieldBitmaps(
+                allFields,
+                payload.ChangeEventHeader.diffFields
+            );
+        } catch (error) {
+            throw new Error('Failed to parse diffFields', { cause: error });
+        }
+        try {
+            payload.ChangeEventHeader.changedFields = parseFieldBitmaps(
+                allFields,
+                payload.ChangeEventHeader.changedFields
+            );
+        } catch (error) {
+            throw new Error('Failed to parse changedFields', { cause: error });
+        }
     }
     return {
         replayId,
