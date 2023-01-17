@@ -1,7 +1,6 @@
 import crypto from 'crypto';
-import EventEmitter from 'events';
+import { EventEmitter } from 'events';
 import fs from 'fs';
-import path from 'path';
 import { fileURLToPath } from 'url';
 
 import avro from 'avro-js';
@@ -123,10 +122,8 @@ export default class PubSubApiClient {
             const rootCert = fs.readFileSync(certifi);
 
             // Load proto definition
-            const curDirName = path.dirname(fileURLToPath(import.meta.url));
-            const protoFilePath = path.resolve(
-                curDirName,
-                '../pubsub_api.proto'
+            const protoFilePath = fileURLToPath(
+                new URL('../pubsub_api.proto', import.meta.url)
             );
             const packageDef = protoLoader.loadSync(protoFilePath, {});
             const grpcObj = grpc.loadPackageDefinition(packageDef);

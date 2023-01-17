@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import jsforce from 'jsforce';
-import fetch from 'node-fetch';
+import { fetch } from 'undici';
 import Configuration from './configuration.js';
 
 /**
