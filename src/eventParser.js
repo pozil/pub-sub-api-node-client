@@ -4,7 +4,7 @@ export function parseEvent(schema, event) {
     const allFields = schema.type.getFields();
     const replayId = decodeReplayId(event.replayId);
     const payload = schema.type.fromBuffer(event.event.payload); // This schema is the same which we retreived earlier in the GetSchema rpc.
-    // Perform only if its a CDC Event
+    // Parse CDC header if available
     if (payload.ChangeEventHeader) {
         try {
             payload.ChangeEventHeader.nulledFields = parseFieldBitmaps(
