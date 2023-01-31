@@ -252,7 +252,9 @@ export default class PubSubApiClient {
                 eventEmitter.emit('error', error);
             });
             subscription.on('status', (status) => {
-                this.#logger.info(`gRPC stream status: ${status}`);
+                this.#logger.info(
+                    `gRPC stream status: ${JSON.stringify(status)}`
+                );
                 eventEmitter.emit('status', status);
             });
             return eventEmitter;
@@ -308,6 +310,14 @@ export default class PubSubApiClient {
                 cause: error
             });
         }
+    }
+
+    /**
+     * Closes the gRPC connection. The client will no longer receive events for any topic.
+     */
+    close() {
+        this.#logger.info('closing gRPC stream');
+        this.#client.close();
     }
 
     /**
