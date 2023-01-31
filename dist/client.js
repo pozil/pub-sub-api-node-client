@@ -493,7 +493,9 @@ var PubSubApiClient = class {
         eventEmitter.emit("error", error);
       });
       subscription.on("status", (status) => {
-        this.#logger.info(`gRPC stream status: ${status}`);
+        this.#logger.info(
+          `gRPC stream status: ${JSON.stringify(status)}`
+        );
         eventEmitter.emit("status", status);
       });
       return eventEmitter;
@@ -540,6 +542,10 @@ var PubSubApiClient = class {
         cause: error
       });
     }
+  }
+  close() {
+    this.#logger.info("closing gRPC stream");
+    this.#client.close();
   }
   async #getEventSchema(topicName) {
     let schema = this.#schemaChache.get(topicName);

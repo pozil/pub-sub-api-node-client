@@ -68,6 +68,10 @@ export default class PubSubApiClient {
      * @returns {Promise<PublishResult>} Promise holding a PublishResult object with replayId and correlationKey
      */
     publish(topicName: string, payload: any, correlationKey?: string): Promise<PublishResult>;
+    /**
+     * Closes the gRPC connection. The client will no longer receive events for any topic.
+     */
+    close(): void;
     #private;
 }
 export type Schema = {
