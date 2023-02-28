@@ -163,15 +163,13 @@ function parseFieldBitmaps(allFields, fieldBitmapsAsHex) {
   }
   let fieldNames = [];
   if (fieldBitmapsAsHex[0].startsWith("0x")) {
-    fieldNames = fieldNames.concat(
-      getFieldNamesFromBitmap(allFields, fieldBitmapsAsHex[0])
-    );
+    fieldNames = getFieldNamesFromBitmap(allFields, fieldBitmapsAsHex[0]);
   }
-  if (fieldBitmapsAsHex[fieldBitmapsAsHex.length - 1].indexOf("-") !== -1) {
+  if (fieldBitmapsAsHex.length > 1 && fieldBitmapsAsHex[fieldBitmapsAsHex.length - 1].indexOf("-") !== -1) {
     fieldBitmapsAsHex.forEach((fieldBitmapAsHex) => {
       const bitmapMapStrings = fieldBitmapAsHex.split("-");
       if (bitmapMapStrings.length >= 2) {
-        const parentField = allFields[parseInt(bitmapMapStrings[0])];
+        const parentField = allFields[parseInt(bitmapMapStrings[0], 10)];
         const childFields = getChildFields(parentField);
         const childFieldNames = getFieldNamesFromBitmap(
           childFields,
@@ -193,15 +191,13 @@ function getChildFields(parentField) {
   types.forEach((type) => {
     if (type instanceof avro.types.RecordType) {
       fields = fields.concat(type.getFields());
-    } else if (type instanceof avro.types.NullType) {
-      fields.push(null);
     }
   });
   return fields;
 }
 function getFieldNamesFromBitmap(fields, fieldBitmapAsHex) {
   let binValue = hexToBin(fieldBitmapAsHex);
-  binValue = reverseBytes(binValue);
+  binValue = binValue.split("").reverse().join("");
   const fieldNames = [];
   for (let i = 0; i < binValue.length && i < fields.length; i++) {
     if (binValue[i] === "1") {
@@ -209,13 +205,6 @@ function getFieldNamesFromBitmap(fields, fieldBitmapAsHex) {
     }
   }
   return fieldNames;
-}
-function reverseBytes(input) {
-  let output = "";
-  for (let i = input.length / 8 - 1; i >= 0; i--) {
-    output += input.substring(i * 8, (i + 1) * 8);
-  }
-  return output;
 }
 function decodeReplayId(encodedReplayId) {
   return Number(encodedReplayId.readBigUInt64BE());
@@ -252,6 +241,10 @@ import jsforce from "jsforce";
 import { fetch } from "undici";
 var _authWithUsernamePassword, authWithUsernamePassword_fn, _authWithOAuthClientCredentials, authWithOAuthClientCredentials_fn, _authWithJwtBearer, authWithJwtBearer_fn, _authWithOAuth, authWithOAuth_fn;
 var _SalesforceAuth = class {
+  /**
+   * Authenticates with the auth mode specified in configuration
+   * @returns {ConnectionMetadata}
+   */
   static async authenticate() {
     var _a, _b, _c;
     if (Configuration.isUsernamePasswordAuth()) {
@@ -346,9 +339,26 @@ authWithOAuth_fn = async function(body) {
     username: preferred_username
   };
 };
+/**
+ * Authenticates with the username/password flow
+ * @returns {ConnectionMetadata}
+ */
 __privateAdd(SalesforceAuth, _authWithUsernamePassword);
+/**
+ * Authenticates with the OAuth 2.0 client credentials flow
+ * @returns {ConnectionMetadata}
+ */
 __privateAdd(SalesforceAuth, _authWithOAuthClientCredentials);
+/**
+ * Authenticates with the OAuth 2.0 JWT bearer flow
+ * @returns {ConnectionMetadata}
+ */
 __privateAdd(SalesforceAuth, _authWithJwtBearer);
+/**
+ * Generic OAuth 2.0 connect method
+ * @param {string} body URL encoded body
+ * @returns {ConnectionMetadata} connection metadata
+ */
 __privateAdd(SalesforceAuth, _authWithOAuth);
 function base64url(input) {
   const buf = Buffer.from(input, "utf8");
@@ -357,9 +367,21 @@ function base64url(input) {
 
 // src/client.js
 var PubSubApiClient = class {
+  /**
+   * gRPC client
+   * @type {Object}
+   */
   #client;
+  /**
+   * Map of schemas indexed by topic name
+   * @type {Map<string,Schema>}
+   */
   #schemaChache;
   #logger;
+  /**
+   * Builds a new Pub/Sub API client
+   * @param {Logger} logger an optional custom logger. The client uses the console if no value is supplied.
+   */
   constructor(logger = console) {
     this.#logger = logger;
     this.#schemaChache = /* @__PURE__ */ new Map();
@@ -372,6 +394,10 @@ var PubSubApiClient = class {
       });
     }
   }
+  /**
+   * Authenticates with Salesforce then, connects to the Pub/Sub API
+   * @returns {Promise<void>} Promise that resolves once the connection is established
+   */
   async connect() {
     if (Configuration.isUserSuppliedAuth()) {
       throw new Error(
@@ -391,6 +417,14 @@ var PubSubApiClient = class {
     }
     return this.#connectToPubSubApi(conMetadata);
   }
+  /**
+   * Connects to the Pub/Sub API with user-supplied authentication
+   * @param {string} accessToken
+   * @param {string} instanceUrl
+   * @param {string} organizationId
+   * @param {string} username
+   * @returns {Promise<void>} Promise that resolves once the connection is established
+   */
   async connectWithAuth(accessToken, instanceUrl, organizationId, username) {
     return this.#connectToPubSubApi({
       accessToken,
@@ -399,6 +433,11 @@ var PubSubApiClient = class {
       username
     });
   }
+  /**
+   * Connects to the Pub/Sub API
+   * @param {import('./auth.js').ConnectionMetadata} conMetadata
+   * @returns {Promise<void>} Promise that resolves once the connection is established
+   */
   async #connectToPubSubApi(conMetadata) {
     try {
       const rootCert = fs2.readFileSync(certifi);
@@ -433,6 +472,13 @@ var PubSubApiClient = class {
       });
     }
   }
+  /**
+   * Subscribes to a topic and retrieves all past events in retention window
+   * @param {string} topicName name of the topic that we're subscribing to
+   * @param {number} numRequested number of events requested
+   * @param {number} replayId replay ID
+   * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
+   */
   async subscribeFromEarliestEvent(topicName, numRequested) {
     return this.#subscribe({
       topicName,
@@ -440,6 +486,13 @@ var PubSubApiClient = class {
       replayPreset: 1
     });
   }
+  /**
+   * Subscribes to a topic and retrieve past events starting from a replay ID
+   * @param {string} topicName name of the topic that we're subscribing to
+   * @param {number} numRequested number of events requested
+   * @param {number} replayId replay ID
+   * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
+   */
   async subscribeFromReplayId(topicName, numRequested, replayId) {
     return this.#subscribe({
       topicName,
@@ -448,12 +501,24 @@ var PubSubApiClient = class {
       replayId: encodeReplayId(replayId)
     });
   }
+  /**
+   * Subscribes to a topic
+   * @param {string} topicName name of the topic that we're subscribing to
+   * @param {number} numRequested number of events requested
+   * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
+   */
   async subscribe(topicName, numRequested) {
     return this.#subscribe({
       topicName,
       numRequested
     });
   }
+  /**
+   * Subscribes to a topic using the gRPC client and an event schema
+   * @param {string} topicName name of the topic that we're subscribing to
+   * @param {number} numRequested number of events requested
+   * @return {EventEmitter} emitter that allows you to listen to received events and stream lifecycle events
+   */
   async #subscribe(subscribeRequest) {
     try {
       if (!this.#client) {
@@ -506,6 +571,13 @@ var PubSubApiClient = class {
       );
     }
   }
+  /**
+   * Publishes a payload to a topic using the gRPC client
+   * @param {string} topicName name of the topic that we're subscribing to
+   * @param {Object} payload
+   * @param {string} [correlationKey] optional correlation key. If you don't provide one, we'll generate a random UUID for you.
+   * @returns {Promise<PublishResult>} Promise holding a PublishResult object with replayId and correlationKey
+   */
   async publish(topicName, payload, correlationKey) {
     try {
       if (!this.#client) {
@@ -520,6 +592,7 @@ var PubSubApiClient = class {
             events: [
               {
                 id,
+                // Correlation key
                 schemaId: schema.id,
                 payload: schema.type.toBuffer(payload)
               }
@@ -543,10 +616,19 @@ var PubSubApiClient = class {
       });
     }
   }
+  /**
+   * Closes the gRPC connection. The client will no longer receive events for any topic.
+   */
   close() {
     this.#logger.info("closing gRPC stream");
     this.#client.close();
   }
+  /**
+   * Retrieves the event schema for a topic from the cache.
+   * If it's not cached, fetches the shema with the gRPC client.
+   * @param {string} topicName name of the topic that we're fetching
+   * @returns {Promise<Schema>} Promise holding parsed event schema
+   */
   async #getEventSchema(topicName) {
     let schema = this.#schemaChache.get(topicName);
     if (!schema) {
@@ -562,6 +644,11 @@ var PubSubApiClient = class {
     }
     return schema;
   }
+  /**
+   * Requests the event schema for a topic using the gRPC client
+   * @param {string} topicName name of the topic that we're fetching
+   * @returns {Promise<Schema>} Promise holding parsed event schema
+   */
   async #fetchEventSchemaWithClient(topicName) {
     return new Promise((resolve, reject) => {
       this.#client.GetTopic({ topicName }, (topicError, response) => {
