@@ -47,20 +47,23 @@ function parseFieldBitmaps(allFields, fieldBitmapsAsHex) {
     if (fieldBitmapsAsHex.length === 0) {
         return [];
     }
+
     let fieldNames = [];
     // Replace top field level bitmap with list of fields
     if (fieldBitmapsAsHex[0].startsWith('0x')) {
-        fieldNames = fieldNames.concat(
-            getFieldNamesFromBitmap(allFields, fieldBitmapsAsHex[0])
-        );
+        fieldNames = getFieldNamesFromBitmap(allFields, fieldBitmapsAsHex[0]);
     }
     // Process compound fields
-    if (fieldBitmapsAsHex[fieldBitmapsAsHex.length - 1].indexOf('-') !== -1) {
+    if (
+        fieldBitmapsAsHex.length > 1 &&
+        fieldBitmapsAsHex[fieldBitmapsAsHex.length - 1].indexOf('-') !== -1
+    ) {
         fieldBitmapsAsHex.forEach((fieldBitmapAsHex) => {
             const bitmapMapStrings = fieldBitmapAsHex.split('-');
             // Ignore top level field bitmap
             if (bitmapMapStrings.length >= 2) {
-                const parentField = allFields[parseInt(bitmapMapStrings[0])];
+                const parentField =
+                    allFields[parseInt(bitmapMapStrings[0], 10)];
                 const childFields = getChildFields(parentField);
                 const childFieldNames = getFieldNamesFromBitmap(
                     childFields,
@@ -83,8 +86,6 @@ function getChildFields(parentField) {
     types.forEach((type) => {
         if (type instanceof avro.types.RecordType) {
             fields = fields.concat(type.getFields());
-        } else if (type instanceof avro.types.NullType) {
-            fields.push(null);
         }
     });
     return fields;
@@ -94,10 +95,12 @@ function getChildFields(parentField) {
  * Loads field names from a bitmap
  * @param {Field[]} fields list of Avro Field
  * @param {string} fieldBitmapAsHex
+ * @returns {string[]} field names
  */
 function getFieldNamesFromBitmap(fields, fieldBitmapAsHex) {
+    // Convert hex to binary and reverse bits
     let binValue = hexToBin(fieldBitmapAsHex);
-    binValue = reverseBytes(binValue); // Reverse byte order to match expected format
+    binValue = binValue.split('').reverse().join('');
     // Use bitmap to figure out field names based on index
     const fieldNames = [];
     for (let i = 0; i < binValue.length && i < fields.length; i++) {
@@ -106,14 +109,6 @@ function getFieldNamesFromBitmap(fields, fieldBitmapAsHex) {
         }
     }
     return fieldNames;
-}
-
-function reverseBytes(input) {
-    let output = '';
-    for (let i = input.length / 8 - 1; i >= 0; i--) {
-        output += input.substring(i * 8, (i + 1) * 8);
-    }
-    return output;
 }
 
 /**
@@ -139,7 +134,7 @@ export function encodeReplayId(replayId) {
 /**
  * Converts a hexadecimal string into a string binary representation
  * @param {string} hex
- * @returns
+ * @returns {string}
  */
 function hexToBin(hex) {
     let bin = hex.substring(2); // Remove 0x prefix
