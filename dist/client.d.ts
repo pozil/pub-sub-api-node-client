@@ -87,5 +87,5 @@ export type Logger = {
     info: Function;
     error: Function;
 };
-import { EventEmitter } from "events";
+import { EventEmitter } from 'events';
 //# sourceMappingURL=client.d.ts.map

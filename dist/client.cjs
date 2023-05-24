@@ -474,7 +474,7 @@ var PubSubApiClient = class {
     try {
       const rootCert = import_fs2.default.readFileSync(import_certifi.default);
       const protoFilePath = (0, import_url.fileURLToPath)(
-        new URL("./pubsub_api.proto?hash=961def31", "file://" + __filename)
+        new URL("./pubsub_api-961def31.proto?hash=961def31", "file://" + __filename)
       );
       const packageDef = import_proto_loader.default.loadSync(protoFilePath, {});
       const grpcObj = import_grpc_js.default.loadPackageDefinition(packageDef);
