@@ -16,7 +16,7 @@
     "scripts": {
         "build": "tsup && tsc",
         "prettier": "prettier --write '**/*.{css,html,js,json,md,yaml,yml}'",
-        "lint": "eslint .",
+        "lint": "eslint src",
         "prepare": "husky install",
         "precommit": "lint-staged",
         "prepublishOnly": "npm run build"
