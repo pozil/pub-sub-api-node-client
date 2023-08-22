@@ -1,17 +1,3 @@
-var __accessCheck = (obj, member, msg) => {
-  if (!member.has(obj))
-    throw TypeError("Cannot " + msg);
-};
-var __privateAdd = (obj, member, value) => {
-  if (member.has(obj))
-    throw TypeError("Cannot add the same private member more than once");
-  member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
-};
-var __privateMethod = (obj, member, method) => {
-  __accessCheck(obj, member, "access private method");
-  return method;
-};
-
 // src/client.js
 import crypto2 from "crypto";
 import { EventEmitter } from "events";
@@ -29,30 +15,28 @@ var AUTH_USER_SUPPLIED = "user-supplied";
 var AUTH_USERNAME_PASSWORD = "username-password";
 var AUTH_OAUTH_CLIENT_CREDENTIALS = "oauth-client-credentials";
 var AUTH_OAUTH_JWT_BEARER = "oauth-jwt-bearer";
-var _checkMandatoryVariables, checkMandatoryVariables_fn;
-var _Configuration = class {
+var Configuration = class _Configuration {
   static load() {
-    var _a, _b, _c, _d;
     dotenv.config();
-    __privateMethod(_a = _Configuration, _checkMandatoryVariables, checkMandatoryVariables_fn).call(_a, [
+    _Configuration.#checkMandatoryVariables([
       "SALESFORCE_AUTH_TYPE",
       "PUB_SUB_ENDPOINT"
     ]);
     if (_Configuration.isUsernamePasswordAuth()) {
-      __privateMethod(_b = _Configuration, _checkMandatoryVariables, checkMandatoryVariables_fn).call(_b, [
+      _Configuration.#checkMandatoryVariables([
         "SALESFORCE_LOGIN_URL",
         "SALESFORCE_USERNAME",
         "SALESFORCE_PASSWORD",
         "SALESFORCE_TOKEN"
       ]);
     } else if (_Configuration.isOAuthClientCredentialsAuth()) {
-      __privateMethod(_c = _Configuration, _checkMandatoryVariables, checkMandatoryVariables_fn).call(_c, [
+      _Configuration.#checkMandatoryVariables([
         "SALESFORCE_LOGIN_URL",
         "SALESFORCE_CLIENT_ID",
         "SALESFORCE_CLIENT_SECRET"
       ]);
     } else if (_Configuration.isOAuthJwtBearerAuth()) {
-      __privateMethod(_d = _Configuration, _checkMandatoryVariables, checkMandatoryVariables_fn).call(_d, [
+      _Configuration.#checkMandatoryVariables([
         "SALESFORCE_LOGIN_URL",
         "SALESFORCE_CLIENT_ID",
         "SALESFORCE_USERNAME",
@@ -108,17 +92,14 @@ var _Configuration = class {
   static isOAuthJwtBearerAuth() {
     return _Configuration.getAuthType() === AUTH_OAUTH_JWT_BEARER;
   }
+  static #checkMandatoryVariables(varNames) {
+    varNames.forEach((varName) => {
+      if (!process.env[varName]) {
+        throw new Error(`Missing ${varName} environment variable`);
+      }
+    });
+  }
 };
-var Configuration = _Configuration;
-_checkMandatoryVariables = new WeakSet();
-checkMandatoryVariables_fn = function(varNames) {
-  varNames.forEach((varName) => {
-    if (!process.env[varName]) {
-      throw new Error(`Missing ${varName} environment variable`);
-    }
-  });
-};
-__privateAdd(Configuration, _checkMandatoryVariables);
 
 // src/eventParser.js
 import avro from "avro-js";
@@ -239,127 +220,114 @@ function hexToBin(hex) {
 import crypto from "crypto";
 import jsforce from "jsforce";
 import { fetch } from "undici";
-var _authWithUsernamePassword, authWithUsernamePassword_fn, _authWithOAuthClientCredentials, authWithOAuthClientCredentials_fn, _authWithJwtBearer, authWithJwtBearer_fn, _authWithOAuth, authWithOAuth_fn;
-var _SalesforceAuth = class {
+var SalesforceAuth = class _SalesforceAuth {
   /**
    * Authenticates with the auth mode specified in configuration
    * @returns {ConnectionMetadata}
    */
   static async authenticate() {
-    var _a, _b, _c;
     if (Configuration.isUsernamePasswordAuth()) {
-      return __privateMethod(_a = _SalesforceAuth, _authWithUsernamePassword, authWithUsernamePassword_fn).call(_a);
+      return _SalesforceAuth.#authWithUsernamePassword();
     } else if (Configuration.isOAuthClientCredentialsAuth()) {
-      return __privateMethod(_b = _SalesforceAuth, _authWithOAuthClientCredentials, authWithOAuthClientCredentials_fn).call(_b);
+      return _SalesforceAuth.#authWithOAuthClientCredentials();
     } else if (Configuration.isOAuthJwtBearerAuth()) {
-      return __privateMethod(_c = _SalesforceAuth, _authWithJwtBearer, authWithJwtBearer_fn).call(_c);
+      return _SalesforceAuth.#authWithJwtBearer();
     } else {
       throw new Error("Unsupported authentication mode.");
     }
   }
-};
-var SalesforceAuth = _SalesforceAuth;
-_authWithUsernamePassword = new WeakSet();
-authWithUsernamePassword_fn = async function() {
-  const sfConnection = new jsforce.Connection({
-    loginUrl: Configuration.getSfLoginUrl()
-  });
-  await sfConnection.login(
-    Configuration.getSfUsername(),
-    Configuration.getSfSecuredPassword()
-  );
-  return {
-    accessToken: sfConnection.accessToken,
-    instanceUrl: sfConnection.instanceUrl,
-    organizationId: sfConnection.userInfo.organizationId,
-    username: Configuration.getSfUsername()
-  };
-};
-_authWithOAuthClientCredentials = new WeakSet();
-authWithOAuthClientCredentials_fn = async function() {
-  var _a;
-  const params = new URLSearchParams();
-  params.append("grant_type", "client_credentials");
-  params.append("client_id", Configuration.getSfClientId());
-  params.append("client_secret", Configuration.getSfClientSecret());
-  return __privateMethod(_a = _SalesforceAuth, _authWithOAuth, authWithOAuth_fn).call(_a, params.toString());
-};
-_authWithJwtBearer = new WeakSet();
-authWithJwtBearer_fn = async function() {
-  var _a;
-  const header = JSON.stringify({ alg: "RS256" });
-  const claims = JSON.stringify({
-    iss: Configuration.getSfClientId(),
-    sub: Configuration.getSfUsername(),
-    aud: Configuration.getSfLoginUrl(),
-    exp: Math.floor(Date.now() / 1e3) + 60 * 5
-  });
-  let token = `${base64url(header)}.${base64url(claims)}`;
-  const sign = crypto.createSign("RSA-SHA256");
-  sign.update(token);
-  sign.end();
-  token += `.${base64url(sign.sign(Configuration.getSfPrivateKey()))}`;
-  const body = `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${token}`;
-  return __privateMethod(_a = _SalesforceAuth, _authWithOAuth, authWithOAuth_fn).call(_a, body);
-};
-_authWithOAuth = new WeakSet();
-authWithOAuth_fn = async function(body) {
-  const loginResponse = await fetch(
-    `${Configuration.getSfLoginUrl()}/services/oauth2/token`,
-    {
-      method: "post",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body
-    }
-  );
-  if (loginResponse.status !== 200) {
-    throw new Error(
-      `Authentication error: HTTP ${loginResponse.status} - ${await loginResponse.text()}`
+  /**
+   * Authenticates with the username/password flow
+   * @returns {ConnectionMetadata}
+   */
+  static async #authWithUsernamePassword() {
+    const sfConnection = new jsforce.Connection({
+      loginUrl: Configuration.getSfLoginUrl()
+    });
+    await sfConnection.login(
+      Configuration.getSfUsername(),
+      Configuration.getSfSecuredPassword()
     );
+    return {
+      accessToken: sfConnection.accessToken,
+      instanceUrl: sfConnection.instanceUrl,
+      organizationId: sfConnection.userInfo.organizationId,
+      username: Configuration.getSfUsername()
+    };
   }
-  const { access_token, instance_url } = await loginResponse.json();
-  const userInfoResponse = await fetch(
-    `${Configuration.getSfLoginUrl()}/services/oauth2/userinfo`,
-    {
-      headers: { authorization: `Bearer ${access_token}` }
-    }
-  );
-  if (userInfoResponse.status !== 200) {
-    throw new Error(
-      `Failed to retrieve user info: HTTP ${userInfoResponse.status} - ${await userInfoResponse.text()}`
+  /**
+   * Authenticates with the OAuth 2.0 client credentials flow
+   * @returns {ConnectionMetadata}
+   */
+  static async #authWithOAuthClientCredentials() {
+    const params = new URLSearchParams();
+    params.append("grant_type", "client_credentials");
+    params.append("client_id", Configuration.getSfClientId());
+    params.append("client_secret", Configuration.getSfClientSecret());
+    return _SalesforceAuth.#authWithOAuth(params.toString());
+  }
+  /**
+   * Authenticates with the OAuth 2.0 JWT bearer flow
+   * @returns {ConnectionMetadata}
+   */
+  static async #authWithJwtBearer() {
+    const header = JSON.stringify({ alg: "RS256" });
+    const claims = JSON.stringify({
+      iss: Configuration.getSfClientId(),
+      sub: Configuration.getSfUsername(),
+      aud: Configuration.getSfLoginUrl(),
+      exp: Math.floor(Date.now() / 1e3) + 60 * 5
+    });
+    let token = `${base64url(header)}.${base64url(claims)}`;
+    const sign = crypto.createSign("RSA-SHA256");
+    sign.update(token);
+    sign.end();
+    token += `.${base64url(sign.sign(Configuration.getSfPrivateKey()))}`;
+    const body = `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${token}`;
+    return _SalesforceAuth.#authWithOAuth(body);
+  }
+  /**
+   * Generic OAuth 2.0 connect method
+   * @param {string} body URL encoded body
+   * @returns {ConnectionMetadata} connection metadata
+   */
+  static async #authWithOAuth(body) {
+    const loginResponse = await fetch(
+      `${Configuration.getSfLoginUrl()}/services/oauth2/token`,
+      {
+        method: "post",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body
+      }
     );
+    if (loginResponse.status !== 200) {
+      throw new Error(
+        `Authentication error: HTTP ${loginResponse.status} - ${await loginResponse.text()}`
+      );
+    }
+    const { access_token, instance_url } = await loginResponse.json();
+    const userInfoResponse = await fetch(
+      `${Configuration.getSfLoginUrl()}/services/oauth2/userinfo`,
+      {
+        headers: { authorization: `Bearer ${access_token}` }
+      }
+    );
+    if (userInfoResponse.status !== 200) {
+      throw new Error(
+        `Failed to retrieve user info: HTTP ${userInfoResponse.status} - ${await userInfoResponse.text()}`
+      );
+    }
+    const { organization_id, preferred_username } = await userInfoResponse.json();
+    return {
+      accessToken: access_token,
+      instanceUrl: instance_url,
+      organizationId: organization_id,
+      username: preferred_username
+    };
   }
-  const { organization_id, preferred_username } = await userInfoResponse.json();
-  return {
-    accessToken: access_token,
-    instanceUrl: instance_url,
-    organizationId: organization_id,
-    username: preferred_username
-  };
 };
-/**
- * Authenticates with the username/password flow
- * @returns {ConnectionMetadata}
- */
-__privateAdd(SalesforceAuth, _authWithUsernamePassword);
-/**
- * Authenticates with the OAuth 2.0 client credentials flow
- * @returns {ConnectionMetadata}
- */
-__privateAdd(SalesforceAuth, _authWithOAuthClientCredentials);
-/**
- * Authenticates with the OAuth 2.0 JWT bearer flow
- * @returns {ConnectionMetadata}
- */
-__privateAdd(SalesforceAuth, _authWithJwtBearer);
-/**
- * Generic OAuth 2.0 connect method
- * @param {string} body URL encoded body
- * @returns {ConnectionMetadata} connection metadata
- */
-__privateAdd(SalesforceAuth, _authWithOAuth);
 function base64url(input) {
   const buf = Buffer.from(input, "utf8");
   return buf.toString("base64url");
@@ -426,6 +394,21 @@ var PubSubApiClient = class {
    * @returns {Promise<void>} Promise that resolves once the connection is established
    */
   async connectWithAuth(accessToken, instanceUrl, organizationId, username) {
+    if (!instanceUrl || !instanceUrl.startsWith("https://")) {
+      throw new Error(
+        `Invalid Salesforce Instance URL format supplied: ${instanceUrl}`
+      );
+    }
+    if (!organizationId || organizationId.length !== 15 && organizationId.length !== 18) {
+      throw new Error(
+        `Invalid Salesforce Org ID format supplied: ${organizationId}`
+      );
+    }
+    if (!username || username.indexOf("@") === -1) {
+      throw new Error(
+        `Invalid Salesforce username format supplied: ${username}`
+      );
+    }
     return this.#connectToPubSubApi({
       accessToken,
       instanceUrl,
