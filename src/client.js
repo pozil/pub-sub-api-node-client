@@ -102,6 +102,24 @@ export default class PubSubApiClient {
      * @returns {Promise<void>} Promise that resolves once the connection is established
      */
     async connectWithAuth(accessToken, instanceUrl, organizationId, username) {
+        if (!instanceUrl || !instanceUrl.startsWith('https://')) {
+            throw new Error(
+                `Invalid Salesforce Instance URL format supplied: ${instanceUrl}`
+            );
+        }
+        if (
+            !organizationId ||
+            (organizationId.length !== 15 && organizationId.length !== 18)
+        ) {
+            throw new Error(
+                `Invalid Salesforce Org ID format supplied: ${organizationId}`
+            );
+        }
+        if (!username || username.indexOf('@') === -1) {
+            throw new Error(
+                `Invalid Salesforce username format supplied: ${username}`
+            );
+        }
         return this.#connectToPubSubApi({
             accessToken,
             instanceUrl,
