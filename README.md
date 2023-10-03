@@ -227,7 +227,7 @@ Publish a `Sample__e` Platform Event with a `Message__c` field:
 ```js
 const payload = {
     CreatedDate: new Date().getTime(), // Non-null value required but there's no validity check performed on this field
-    CreatedById: 'someone', // Non-null value required but there's no validity check performed on this field
+    CreatedById: 'someone', // Valid user ID
     Message__c: { string: 'Hello world' } // Field is nullable so we need to specify the 'string' type
 };
 const publishResult = await client.publish('/event/Sample__e', payload);
