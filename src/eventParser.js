@@ -31,10 +31,34 @@ export function parseEvent(schema, event) {
             throw new Error('Failed to parse changedFields', { cause: error });
         }
     }
+    // Eliminate intermediate types left by Avro in payload
+    flattenSinglePropertyObjects(payload);
+    // Return parsed data
     return {
         replayId,
         payload
     };
+}
+
+/**
+ * Flattens object properies that are themself objects with a single property.
+ * This is used to eliminate intermediate 'types' left by Avro.
+ * For example: { city : { string: 'SFO' } } becomes { city: 'SFO' }
+ * @param {Object} theObject the object to fransform
+ */
+function flattenSinglePropertyObjects(theObject) {
+    Object.entries(theObject).forEach(([key, value]) => {
+        if (key !== 'ChangeEventHeader' && value && typeof value === 'object') {
+            const subKeys = Object.keys(value);
+            if (subKeys.length === 1) {
+                const subValue = value[subKeys[0]];
+                theObject[key] = subValue;
+                if (subValue && typeof subValue === 'object') {
+                    flattenSinglePropertyObjects(theObject[key]);
+                }
+            }
+        }
+    });
 }
 
 /**
