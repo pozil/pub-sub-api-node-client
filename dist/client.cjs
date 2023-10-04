@@ -33,7 +33,6 @@ __export(client_exports, {
 });
 module.exports = __toCommonJS(client_exports);
 var import_crypto2 = __toESM(require("crypto"), 1);
-var import_events = require("events");
 var import_fs2 = __toESM(require("fs"), 1);
 var import_url = require("url");
 var import_avro_js2 = __toESM(require("avro-js"), 1);
@@ -166,10 +165,25 @@ function parseEvent(schema, event) {
       throw new Error("Failed to parse changedFields", { cause: error });
     }
   }
+  flattenSinglePropertyObjects(payload);
   return {
     replayId,
     payload
   };
+}
+function flattenSinglePropertyObjects(theObject) {
+  Object.entries(theObject).forEach(([key, value]) => {
+    if (key !== "ChangeEventHeader" && value && typeof value === "object") {
+      const subKeys = Object.keys(value);
+      if (subKeys.length === 1) {
+        const subValue = value[subKeys[0]];
+        theObject[key] = subValue;
+        if (subValue && typeof subValue === "object") {
+          flattenSinglePropertyObjects(theObject[key]);
+        }
+      }
+    }
+  });
 }
 function parseFieldBitmaps(allFields, fieldBitmapsAsHex) {
   if (fieldBitmapsAsHex.length === 0) {
@@ -366,6 +380,52 @@ function base64url(input) {
   return buf.toString("base64url");
 }
 
+// src/pubSubEventEmitter.js
+var import_events = require("events");
+var PubSubEventEmitter = class extends import_events.EventEmitter {
+  #topicName;
+  #requestedEventCount;
+  #receivedEventCount;
+  /**
+   * Create a new EventEmitter for Pub/Sub API events
+   * @param {string} topicName
+   * @param {number} requestedEventCount
+   */
+  constructor(topicName, requestedEventCount) {
+    super();
+    this.#topicName = topicName;
+    this.#requestedEventCount = requestedEventCount;
+    this.#receivedEventCount = 0;
+  }
+  emit(eventName, args) {
+    if (eventName === "data") {
+      this.#receivedEventCount++;
+    }
+    return super.emit(eventName, args);
+  }
+  /**
+   * Returns the number of events that were requested during the subscription
+   * @returns {number} the number of events that were requested
+   */
+  getRequestedEventCount() {
+    return this.#requestedEventCount;
+  }
+  /**
+   * Returns the number of events that were received since the subscription
+   * @returns {number} the number of events that were received
+   */
+  getReceivedEventCount() {
+    return this.#receivedEventCount;
+  }
+  /**
+   * Returns the topic name for this subscription
+   * @returns {string} the topic name
+   */
+  getTopicName() {
+    return this.#topicName;
+  }
+};
+
 // src/client.js
 var PubSubApiClient = class {
   /**
@@ -492,7 +552,6 @@ var PubSubApiClient = class {
    * Subscribes to a topic and retrieves all past events in retention window
    * @param {string} topicName name of the topic that we're subscribing to
    * @param {number} numRequested number of events requested
-   * @param {number} replayId replay ID
    * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
    */
   async subscribeFromEarliestEvent(topicName, numRequested) {
@@ -531,9 +590,8 @@ var PubSubApiClient = class {
   }
   /**
    * Subscribes to a topic using the gRPC client and an event schema
-   * @param {string} topicName name of the topic that we're subscribing to
-   * @param {number} numRequested number of events requested
-   * @return {EventEmitter} emitter that allows you to listen to received events and stream lifecycle events
+   * @param {object} subscribeRequest subscription request
+   * @return {PubSubEventEmitter} emitter that allows you to listen to received events and stream lifecycle events
    */
   async #subscribe(subscribeRequest) {
     try {
@@ -548,7 +606,10 @@ var PubSubApiClient = class {
       this.#logger.info(
         `Subscribe request sent for ${subscribeRequest.numRequested} events from ${subscribeRequest.topicName}...`
       );
-      const eventEmitter = new import_events.EventEmitter();
+      const eventEmitter = new PubSubEventEmitter(
+        subscribeRequest.topicName,
+        subscribeRequest.numRequested
+      );
       subscription.on("data", (data) => {
         if (data.events) {
           const latestReplayId = decodeReplayId(data.latestReplayId);
@@ -559,6 +620,9 @@ var PubSubApiClient = class {
             const parsedEvent = parseEvent(schema, event);
             this.#logger.debug(parsedEvent);
             eventEmitter.emit("data", parsedEvent);
+            if (eventEmitter.getReceivedEventCount() === eventEmitter.getRequestedEventCount()) {
+              eventEmitter.emit("lastevent");
+            }
           });
         } else {
         }

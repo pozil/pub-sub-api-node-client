@@ -41,7 +41,6 @@ export default class PubSubApiClient {
      * Subscribes to a topic and retrieves all past events in retention window
      * @param {string} topicName name of the topic that we're subscribing to
      * @param {number} numRequested number of events requested
-     * @param {number} replayId replay ID
      * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      */
     subscribeFromEarliestEvent(topicName: string, numRequested: number): Promise<EventEmitter>;
@@ -87,5 +86,4 @@ export type Logger = {
     info: Function;
     error: Function;
 };
-import { EventEmitter } from 'events';
 //# sourceMappingURL=client.d.ts.map
