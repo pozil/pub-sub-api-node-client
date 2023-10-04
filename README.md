@@ -163,89 +163,80 @@ Here's an example that will get you started quickly. It listens to a single acco
     Received 1 events, latest replay ID: 18098167
     Handling Account change event with ID 18098167 on channel /data/AccountChangeEvent (1/1 events received so far)
     {
-    "replayId": 18098167,
-    "payload": {
-        "ChangeEventHeader": {
-        "entityName": "Account",
-        "recordIds": [
-            "0014H00002LbR7QQAV"
-        ],
-        "changeType": "UPDATE",
-        "changeOrigin": "com/salesforce/api/soap/58.0;client=SfdcInternalAPI/",
-        "transactionKey": "000046c7-a642-11e2-c29b-229c6786473e",
-        "sequenceNumber": 1,
-        "commitTimestamp": 1696444513000,
-        "commitNumber": 11657372702432,
-        "commitUser": "00558000000yFyDAAU",
-        "nulledFields": [],
-        "diffFields": [],
-        "changedFields": [
-            "LastModifiedDate",
-            "BillingAddress.State"
-        ]
-        },
-        "Name": null,
-        "Type": null,
-        "ParentId": null,
-        "BillingAddress": {
-        "Street": null,
-        "City": null,
-        "State": "CA",
-        "PostalCode": null,
-        "Country": null,
-        "StateCode": null,
-        "CountryCode": null,
-        "Latitude": null,
-        "Longitude": null,
-        "Xyz": null,
-        "GeocodeAccuracy": null
-        },
-        "ShippingAddress": null,
-        "Phone": null,
-        "Fax": null,
-        "AccountNumber": null,
-        "Website": null,
-        "Sic": null,
-        "Industry": null,
-        "AnnualRevenue": null,
-        "NumberOfEmployees": null,
-        "Ownership": null,
-        "TickerSymbol": null,
-        "Description": null,
-        "Rating": null,
-        "Site": null,
-        "OwnerId": null,
-        "CreatedDate": null,
-        "CreatedById": null,
-        "LastModifiedDate": 1696444513000,
-        "LastModifiedById": null,
-        "Jigsaw": null,
-        "JigsawCompanyId": null,
-        "CleanStatus": null,
-        "AccountSource": null,
-        "DunsNumber": null,
-        "Tradestyle": null,
-        "NaicsCode": null,
-        "NaicsDesc": null,
-        "YearStarted": null,
-        "SicDesc": null,
-        "DandbCompanyId": null,
-        "CustomerPriority__c": null,
-        "SLA__c": null,
-        "Active__c": null,
-        "NumberofLocations__c": null,
-        "UpsellOpportunity__c": null,
-        "SLASerialNumber__c": null,
-        "SLAExpirationDate__c": null,
-        "Potential_Value__c": null,
-        "Match_Billing_Address__c": null,
-        "Number_of_Contacts__c": null,
-        "Region__c": null
-    }
+        "replayId": 18098167,
+        "payload": {
+            "ChangeEventHeader": {
+            "entityName": "Account",
+            "recordIds": [
+                "0014H00002LbR7QQAV"
+            ],
+            "changeType": "UPDATE",
+            "changeOrigin": "com/salesforce/api/soap/58.0;client=SfdcInternalAPI/",
+            "transactionKey": "000046c7-a642-11e2-c29b-229c6786473e",
+            "sequenceNumber": 1,
+            "commitTimestamp": 1696444513000,
+            "commitNumber": 11657372702432,
+            "commitUser": "00558000000yFyDAAU",
+            "nulledFields": [],
+            "diffFields": [],
+            "changedFields": [
+                "LastModifiedDate",
+                "BillingAddress.City",
+                "BillingAddress.State"
+            ]
+            },
+            "Name": null,
+            "Type": null,
+            "ParentId": null,
+            "BillingAddress": {
+                "Street": null,
+                "City": "San Francisco",
+                "State": "CA",
+                "PostalCode": null,
+                "Country": null,
+                "StateCode": null,
+                "CountryCode": null,
+                "Latitude": null,
+                "Longitude": null,
+                "Xyz": null,
+                "GeocodeAccuracy": null
+            },
+            "ShippingAddress": null,
+            "Phone": null,
+            "Fax": null,
+            "AccountNumber": null,
+            "Website": null,
+            "Sic": null,
+            "Industry": null,
+            "AnnualRevenue": null,
+            "NumberOfEmployees": null,
+            "Ownership": null,
+            "TickerSymbol": null,
+            "Description": null,
+            "Rating": null,
+            "Site": null,
+            "OwnerId": null,
+            "CreatedDate": null,
+            "CreatedById": null,
+            "LastModifiedDate": 1696444513000,
+            "LastModifiedById": null,
+            "Jigsaw": null,
+            "JigsawCompanyId": null,
+            "CleanStatus": null,
+            "AccountSource": null,
+            "DunsNumber": null,
+            "Tradestyle": null,
+            "NaicsCode": null,
+            "NaicsDesc": null,
+            "YearStarted": null,
+            "SicDesc": null,
+            "DandbCompanyId": null
+        }
     }
     ```
 
-    Note that the change event payloads include all object fields but fields that haven't changed are null.
+    Note that the change event payloads include all object fields but fields that haven't changed are null. In the above example, the only changes are the Billing State, Billing City and Last Modified Date.
+
     Use the values from `ChangeEventHeader.nulledFields`, `ChangeEventHeader.diffFields` and `ChangeEventHeader.changedFields` to identify actual value changes.
 
     After receiving the number of requested events, the script will terminate with these messages:
