@@ -98,40 +98,51 @@ PUB_SUB_ENDPOINT=api.pubsub.salesforce.com:7443
 
 Here's an example that will get you started quickly. It listens to a single account change event.
 
-1. Activate Account change events in **Salesforce Setup > Change Data Capture**.
+1.  Activate Account change events in **Salesforce Setup > Change Data Capture**.
 
-1. Create a `sample.js` file with this content:
+1.  Create a `sample.js` file with this content:
 
-    ```js
-    import PubSubApiClient from 'salesforce-pubsub-api-client';
+        ```js
+        import PubSubApiClient from 'salesforce-pubsub-api-client';
 
-    async function run() {
-        try {
-            const client = new PubSubApiClient();
-            await client.connect();
+        async function run() {
+            try {
+                const client = new PubSubApiClient();
+                await client.connect();
 
-            // Subscribe to a single incoming account change events
-            const eventEmitter = await client.subscribe(
-                '/data/AccountChangeEvent',
-                1
-            );
-
-            // Handle incoming events
-            eventEmitter.on('data', (event) => {
-                console.log(
-                    `Handling ${event.payload.ChangeEventHeader.entityName} change event ${event.replayId}`
+                // Subscribe to a single incoming account change event
+                const eventEmitter = await client.subscribe(
+                    '/data/AccountChangeEvent',
+                    1
                 );
-                console.log(JSON.stringify(event, null, 2));
-            });
-        } catch (error) {
-            console.error(error);
+
+                // Handle incoming events
+                eventEmitter.on('data', (event) => {
+                    console.log(`Handling ${event.payload.ChangeEventHeader.entityName} change event `
+                        + `with ID ${event.replayId} `
+                        + `on channel ${eventEmitter.getTopicName()} `
+                        + `(${eventEmitter.getReceivedEventCount()}/${eventEmitter.getRequestedEventCount()} `
+                        + `events received so far)`);
+                    console.log(JSON.stringify(event, null, 2));
+                });
+
+                // Handle last requested event
+                eventEmitter.on('lastevent', (event) => {
+                    console.log(
+                        `Reached last requested event on channel ${eventEmitter.getTopicName()}.`
+                    );
+                    // At this point the gRPC client will close automatically
+                    // unless you re-subscribe to request more events (default Pub/Sub API behavior)
+                });
+            } catch (error) {
+                console.error(error);
+            }
         }
-    }
 
-    run();
-    ```
+        run();
+        ```
 
-1. Run the project with `node sample.js`
+1.  Run the project with `node sample.js`
 
     If everything goes well, you'll see output like this:
 
@@ -144,39 +155,51 @@ Here's an example that will get you started quickly. It listens to a single acco
 
     At this point the script will be on hold and will wait for events.
 
-1. Modify an account record in Salesforce. This fires an account change event.
+1.  Modify an account record in Salesforce. This fires an account change event.
 
     Once the client receives an event, it will display it like this:
 
     ```
-    Received 1 events, latest replay ID: 17093000
-    Handling Account change event 17093000
+    Received 1 events, latest replay ID: 18098167
+    Handling Account change event with ID 18098167 on channel /data/AccountChangeEvent (1/1 events received so far)
     {
-      "replayId": 17093000,
-      "payload": {
+    "replayId": 18098167,
+    "payload": {
         "ChangeEventHeader": {
-          "entityName": "Account",
-          "recordIds": [
+        "entityName": "Account",
+        "recordIds": [
             "0014H00002LbR7QQAV"
-          ],
-          "changeType": "UPDATE",
-          "changeOrigin": "com/salesforce/api/soap/56.0;client=SfdcInternalAPI/",
-          "transactionKey": "0005349f-124e-0df1-3a25-f551ab84d237",
-          "sequenceNumber": 1,
-          "commitTimestamp": 1672428268000,
-          "commitNumber": 11449587527037,
-          "commitUser": "00558000000yFyDAAU",
-          "nulledFields": [],
-          "diffFields": [],
-          "changedFields": [
-            "Rating",
-            "LastModifiedDate"
-          ]
+        ],
+        "changeType": "UPDATE",
+        "changeOrigin": "com/salesforce/api/soap/58.0;client=SfdcInternalAPI/",
+        "transactionKey": "000046c7-a642-11e2-c29b-229c6786473e",
+        "sequenceNumber": 1,
+        "commitTimestamp": 1696444513000,
+        "commitNumber": 11657372702432,
+        "commitUser": "00558000000yFyDAAU",
+        "nulledFields": [],
+        "diffFields": [],
+        "changedFields": [
+            "LastModifiedDate",
+            "BillingAddress.State"
+        ]
         },
         "Name": null,
         "Type": null,
         "ParentId": null,
-        "BillingAddress": null,
+        "BillingAddress": {
+        "Street": null,
+        "City": null,
+        "State": "CA",
+        "PostalCode": null,
+        "Country": null,
+        "StateCode": null,
+        "CountryCode": null,
+        "Latitude": null,
+        "Longitude": null,
+        "Xyz": null,
+        "GeocodeAccuracy": null
+        },
         "ShippingAddress": null,
         "Phone": null,
         "Fax": null,
@@ -189,18 +212,36 @@ Here's an example that will get you started quickly. It listens to a single acco
         "Ownership": null,
         "TickerSymbol": null,
         "Description": null,
-        "Rating": {
-          "string": "Hot"
-        },
+        "Rating": null,
         "Site": null,
         "OwnerId": null,
         "CreatedDate": null,
         "CreatedById": null,
-        "LastModifiedDate": {
-          "long": 1672428268000
-        },
-        ...
-      }
+        "LastModifiedDate": 1696444513000,
+        "LastModifiedById": null,
+        "Jigsaw": null,
+        "JigsawCompanyId": null,
+        "CleanStatus": null,
+        "AccountSource": null,
+        "DunsNumber": null,
+        "Tradestyle": null,
+        "NaicsCode": null,
+        "NaicsDesc": null,
+        "YearStarted": null,
+        "SicDesc": null,
+        "DandbCompanyId": null,
+        "CustomerPriority__c": null,
+        "SLA__c": null,
+        "Active__c": null,
+        "NumberofLocations__c": null,
+        "UpsellOpportunity__c": null,
+        "SLASerialNumber__c": null,
+        "SLAExpirationDate__c": null,
+        "Potential_Value__c": null,
+        "Match_Billing_Address__c": null,
+        "Number_of_Contacts__c": null,
+        "Region__c": null
+    }
     }
     ```
 
@@ -210,11 +251,8 @@ Here's an example that will get you started quickly. It listens to a single acco
     After receiving the number of requested events, the script will terminate with these messages:
 
     ```
-    gRPC stream status:  {
-      code: 0,
-      details: '',
-      metadata: Metadata { _internal_repr: {}, flags: 0 }
-    }
+    Reached last requested event on channel /data/AccountChangeEvent
+    gRPC stream status: {"code":0,"details":"","metadata":{}}
     gRPC stream ended
     ```
 
@@ -227,7 +265,7 @@ Publish a `Sample__e` Platform Event with a `Message__c` field:
 ```js
 const payload = {
     CreatedDate: new Date().getTime(), // Non-null value required but there's no validity check performed on this field
-    CreatedById: 'someone', // Valid user ID
+    CreatedById: '005_________', // Valid user ID
     Message__c: { string: 'Hello world' } // Field is nullable so we need to specify the 'string' type
 };
 const publishResult = await client.publish('/event/Sample__e', payload);
@@ -236,7 +274,7 @@ console.log('Published event: ', JSON.stringify(publishResult));
 
 ### Subscribe with a replay ID
 
-Subscribe to account change events starting from a replay ID:
+Subscribe to 5 account change events starting from a replay ID:
 
 ```js
 const eventEmitter = await client.subscribeFromReplayId(
@@ -248,7 +286,7 @@ const eventEmitter = await client.subscribeFromReplayId(
 
 ### Subscribe to past events in retention window
 
-Subscribe to past account change events in retention window:
+Subscribe to the 3 earliest past account change events in retention window:
 
 ```js
 const eventEmitter = await client.subscribeFromEarliestEvent(

@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import { EventEmitter } from 'events';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 
@@ -11,6 +10,7 @@ import protoLoader from '@grpc/proto-loader';
 import Configuration from './configuration.js';
 import { parseEvent, encodeReplayId, decodeReplayId } from './eventParser.js';
 import SalesforceAuth from './auth.js';
+import PubSubEventEmitter from './pubSubEventEmitter.js';
 
 /**
  * @typedef {Object} Schema
@@ -181,7 +181,6 @@ export default class PubSubApiClient {
      * Subscribes to a topic and retrieves all past events in retention window
      * @param {string} topicName name of the topic that we're subscribing to
      * @param {number} numRequested number of events requested
-     * @param {number} replayId replay ID
      * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      */
     async subscribeFromEarliestEvent(topicName, numRequested) {
@@ -223,9 +222,8 @@ export default class PubSubApiClient {
 
     /**
      * Subscribes to a topic using the gRPC client and an event schema
-     * @param {string} topicName name of the topic that we're subscribing to
-     * @param {number} numRequested number of events requested
-     * @return {EventEmitter} emitter that allows you to listen to received events and stream lifecycle events
+     * @param {object} subscribeRequest subscription request
+     * @return {PubSubEventEmitter} emitter that allows you to listen to received events and stream lifecycle events
      */
     async #subscribe(subscribeRequest) {
         try {
@@ -243,7 +241,10 @@ export default class PubSubApiClient {
             );
 
             // Listen to new events
-            const eventEmitter = new EventEmitter();
+            const eventEmitter = new PubSubEventEmitter(
+                subscribeRequest.topicName,
+                subscribeRequest.numRequested
+            );
             subscription.on('data', (data) => {
                 if (data.events) {
                     const latestReplayId = decodeReplayId(data.latestReplayId);
@@ -254,6 +255,13 @@ export default class PubSubApiClient {
                         const parsedEvent = parseEvent(schema, event);
                         this.#logger.debug(parsedEvent);
                         eventEmitter.emit('data', parsedEvent);
+                        // Emit a 'lastevent' event when reaching the last requested event count
+                        if (
+                            eventEmitter.getReceivedEventCount() ===
+                            eventEmitter.getRequestedEventCount()
+                        ) {
+                            eventEmitter.emit('lastevent');
+                        }
                     });
                 } else {
                     // If there are no events then every 270 seconds the system will keep publishing the latestReplayId.
