@@ -58,8 +58,7 @@ var Configuration = class _Configuration {
       _Configuration.#checkMandatoryVariables([
         "SALESFORCE_LOGIN_URL",
         "SALESFORCE_USERNAME",
-        "SALESFORCE_PASSWORD",
-        "SALESFORCE_TOKEN"
+        "SALESFORCE_PASSWORD"
       ]);
     } else if (_Configuration.isOAuthClientCredentialsAuth()) {
       _Configuration.#checkMandatoryVariables([
@@ -91,7 +90,10 @@ var Configuration = class _Configuration {
     return process.env.SALESFORCE_USERNAME;
   }
   static getSfSecuredPassword() {
-    return process.env.SALESFORCE_PASSWORD + process.env.SALESFORCE_TOKEN;
+    if (process.env.SALESFORCE_TOKEN) {
+      return process.env.SALESFORCE_PASSWORD + process.env.SALESFORCE_TOKEN;
+    }
+    return process.env.SALESFORCE_PASSWORD;
   }
   static getSfClientId() {
     return process.env.SALESFORCE_CLIENT_ID;
