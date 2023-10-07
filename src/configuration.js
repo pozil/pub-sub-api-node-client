@@ -20,8 +20,7 @@ export default class Configuration {
             Configuration.#checkMandatoryVariables([
                 'SALESFORCE_LOGIN_URL',
                 'SALESFORCE_USERNAME',
-                'SALESFORCE_PASSWORD',
-                'SALESFORCE_TOKEN'
+                'SALESFORCE_PASSWORD'
             ]);
         } else if (Configuration.isOAuthClientCredentialsAuth()) {
             Configuration.#checkMandatoryVariables([
@@ -57,7 +56,12 @@ export default class Configuration {
     }
 
     static getSfSecuredPassword() {
-        return process.env.SALESFORCE_PASSWORD + process.env.SALESFORCE_TOKEN;
+        if (process.env.SALESFORCE_TOKEN) {
+            return (
+                process.env.SALESFORCE_PASSWORD + process.env.SALESFORCE_TOKEN
+            );
+        }
+        return process.env.SALESFORCE_PASSWORD;
     }
 
     static getSfClientId() {
