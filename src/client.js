@@ -97,43 +97,49 @@ export default class PubSubApiClient {
      * Connects to the Pub/Sub API with user-supplied authentication
      * @param {string} accessToken
      * @param {string} instanceUrl
-     * @param {string} organizationId
-     * @param {string} username
+     * @param {string} organizationId optional organizationId. If you don't provide one, we'll attempt to parse it from the accessToken.
      * @returns {Promise<void>} Promise that resolves once the connection is established
      */
-    async connectWithAuth(accessToken, instanceUrl, organizationId, username) {
+    async connectWithAuth(accessToken, instanceUrl, organizationId) {
         if (!instanceUrl || !instanceUrl.startsWith('https://')) {
             throw new Error(
                 `Invalid Salesforce Instance URL format supplied: ${instanceUrl}`
             );
         }
+        let validOrganizationId = organizationId;
+        if (!organizationId) {
+            try {
+                validOrganizationId = accessToken.split('!').at(0);
+            } catch (error) {
+                throw new Error(
+                    'Unable to parse organizationId from given access token',
+                    {
+                        cause: error
+                    }
+                );
+            }
+        }
         if (
-            !organizationId ||
-            (organizationId.length !== 15 && organizationId.length !== 18)
+            validOrganizationId.length !== 15 &&
+            validOrganizationId.length !== 18
         ) {
             throw new Error(
-                `Invalid Salesforce Org ID format supplied: ${organizationId}`
-            );
-        }
-        if (!username || username.indexOf('@') === -1) {
-            throw new Error(
-                `Invalid Salesforce username format supplied: ${username}`
+                `Invalid Salesforce Org ID format supplied: ${validOrganizationId}`
             );
         }
         return this.#connectToPubSubApi({
             accessToken,
             instanceUrl,
-            organizationId,
-            username
+            organizationId: validOrganizationId
         });
     }
 
     /**
      * Connects to the Pub/Sub API
-     * @param {import('./auth.js').ConnectionMetadata} conMetadata
+     * @param {import('./auth.js').ConnectionDetails} conDetails
      * @returns {Promise<void>} Promise that resolves once the connection is established
      */
-    async #connectToPubSubApi(conMetadata) {
+    async #connectToPubSubApi(conDetails) {
         // Connect to Pub/Sub API
         try {
             // Read certificates
@@ -150,9 +156,9 @@ export default class PubSubApiClient {
             // Prepare gRPC connection
             const metaCallback = (_params, callback) => {
                 const meta = new grpc.Metadata();
-                meta.add('accesstoken', conMetadata.accessToken);
-                meta.add('instanceurl', conMetadata.instanceUrl);
-                meta.add('tenantid', conMetadata.organizationId);
+                meta.add('accesstoken', conDetails.accessToken);
+                meta.add('instanceurl', conDetails.instanceUrl);
+                meta.add('tenantid', conDetails.organizationId);
                 callback(null, meta);
             };
             const callCreds =

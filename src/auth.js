@@ -11,6 +11,13 @@ import Configuration from './configuration.js';
  * @property {string} username
  */
 
+/**
+ * @typedef {Object} ConnectionDetails
+ * @property {string} accessToken
+ * @property {string} instanceUrl
+ * @property {string} organizationId
+ */
+
 export default class SalesforceAuth {
     /**
      * Authenticates with the auth mode specified in configuration

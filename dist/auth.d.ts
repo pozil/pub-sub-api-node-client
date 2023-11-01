@@ -5,6 +5,12 @@
  * @property {string} organizationId
  * @property {string} username
  */
+/**
+ * @typedef {Object} ConnectionDetails
+ * @property {string} accessToken
+ * @property {string} instanceUrl
+ * @property {string} organizationId
+ */
 export default class SalesforceAuth {
     /**
      * Authenticates with the auth mode specified in configuration
@@ -38,5 +44,10 @@ export type ConnectionMetadata = {
     instanceUrl: string;
     organizationId: string;
     username: string;
+};
+export type ConnectionDetails = {
+    accessToken: string;
+    instanceUrl: string;
+    organizationId: string;
 };
 //# sourceMappingURL=auth.d.ts.map
