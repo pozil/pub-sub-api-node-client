@@ -2,8 +2,8 @@
  * @typedef {Object} ConnectionMetadata
  * @property {string} accessToken
  * @property {string} instanceUrl
- * @property {string} [organizationId]
- * @property {string} [username]
+ * @property {string} [organizationId] Optional organization ID. Can be omitted when working with user-supplied authentication.
+ * @property {string} [username] Optional username. Omitted when working with user-supplied authentication.
  */
 export default class SalesforceAuth {
     /**
@@ -36,7 +36,13 @@ export default class SalesforceAuth {
 export type ConnectionMetadata = {
     accessToken: string;
     instanceUrl: string;
+    /**
+     * Optional organization ID. Can be omitted when working with user-supplied authentication.
+     */
     organizationId?: string;
+    /**
+     * Optional username. Omitted when working with user-supplied authentication.
+     */
     username?: string;
 };
 //# sourceMappingURL=auth.d.ts.map
