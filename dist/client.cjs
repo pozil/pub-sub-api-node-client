@@ -484,7 +484,7 @@ var PubSubApiClient = class {
    * Connects to the Pub/Sub API with user-supplied authentication
    * @param {string} accessToken
    * @param {string} instanceUrl
-   * @param {string} organizationId optional organizationId. If you don't provide one, we'll attempt to parse it from the accessToken.
+   * @param {string} [organizationId] optional organizationId. If you don't provide one, we'll attempt to parse it from the accessToken.
    * @returns {Promise<void>} Promise that resolves once the connection is established
    */
   async connectWithAuth(accessToken, instanceUrl, organizationId) {
@@ -498,9 +498,12 @@ var PubSubApiClient = class {
       try {
         validOrganizationId = accessToken.split("!").at(0);
       } catch (error) {
-        throw new Error("Unable to parse organizationId from given access token", {
-          cause: error
-        });
+        throw new Error(
+          "Unable to parse organizationId from given access token",
+          {
+            cause: error
+          }
+        );
       }
     }
     if (validOrganizationId.length !== 15 && validOrganizationId.length !== 18) {
@@ -516,10 +519,10 @@ var PubSubApiClient = class {
   }
   /**
    * Connects to the Pub/Sub API
-   * @param {import('./auth.js').ConnectionDetails} conDetails
+   * @param {import('./auth.js').ConnectionMetadata} conMetadata
    * @returns {Promise<void>} Promise that resolves once the connection is established
    */
-  async #connectToPubSubApi(conDetails) {
+  async #connectToPubSubApi(conMetadata) {
     try {
       const rootCert = import_fs2.default.readFileSync(import_certifi.default);
       const protoFilePath = (0, import_url.fileURLToPath)(
@@ -530,9 +533,9 @@ var PubSubApiClient = class {
       const sfdcPackage = grpcObj.eventbus.v1;
       const metaCallback = (_params, callback) => {
         const meta = new import_grpc_js.default.Metadata();
-        meta.add("accesstoken", conDetails.accessToken);
-        meta.add("instanceurl", conDetails.instanceUrl);
-        meta.add("tenantid", conDetails.organizationId);
+        meta.add("accesstoken", conMetadata.accessToken);
+        meta.add("instanceurl", conMetadata.instanceUrl);
+        meta.add("tenantid", conMetadata.organizationId);
         callback(null, meta);
       };
       const callCreds = import_grpc_js.default.credentials.createFromMetadataGenerator(metaCallback);

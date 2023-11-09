@@ -2,14 +2,8 @@
  * @typedef {Object} ConnectionMetadata
  * @property {string} accessToken
  * @property {string} instanceUrl
- * @property {string} organizationId
- * @property {string} username
- */
-/**
- * @typedef {Object} ConnectionDetails
- * @property {string} accessToken
- * @property {string} instanceUrl
- * @property {string} organizationId
+ * @property {string} [organizationId]
+ * @property {string} [username]
  */
 export default class SalesforceAuth {
     /**
@@ -42,12 +36,7 @@ export default class SalesforceAuth {
 export type ConnectionMetadata = {
     accessToken: string;
     instanceUrl: string;
-    organizationId: string;
-    username: string;
-};
-export type ConnectionDetails = {
-    accessToken: string;
-    instanceUrl: string;
-    organizationId: string;
+    organizationId?: string;
+    username?: string;
 };
 //# sourceMappingURL=auth.d.ts.map

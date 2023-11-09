@@ -7,15 +7,8 @@ import Configuration from './configuration.js';
  * @typedef {Object} ConnectionMetadata
  * @property {string} accessToken
  * @property {string} instanceUrl
- * @property {string} organizationId
- * @property {string} username
- */
-
-/**
- * @typedef {Object} ConnectionDetails
- * @property {string} accessToken
- * @property {string} instanceUrl
- * @property {string} organizationId
+ * @property {string} [organizationId]
+ * @property {string} [username]
  */
 
 export default class SalesforceAuth {
