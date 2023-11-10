@@ -1,8 +1,10 @@
 import { EventEmitter } from 'events';
 
 /**
- * EventEmitter wrapper for processing Pub/Sub API events
+ * EventEmitter wrapper for processing incoming Pub/Sub API events
  * while keeping track of the topic name and the volume of events requested/received.
+ * @alias PubSubEventEmitter
+ * @global
  */
 export default class PubSubEventEmitter extends EventEmitter {
     #topicName;
@@ -13,6 +15,7 @@ export default class PubSubEventEmitter extends EventEmitter {
      * Create a new EventEmitter for Pub/Sub API events
      * @param {string} topicName
      * @param {number} requestedEventCount
+     * @protected
      */
     constructor(topicName, requestedEventCount) {
         super();
