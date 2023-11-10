@@ -1,0 +1,1 @@
+{"version":3,"file":"auth.d.ts","sourceRoot":"","sources":["../../src/utils/auth.js"],"names":[],"mappings":"AAKA;;;;;;GAMG;AAEH;IACI;;;OAGG;IACH,uBAFa,kBAAkB,CAY9B;IAED;;;OAGG;IACH,2CAFa,kBAAkB,CAgB9B;IAED;;;OAGG;IACH,iDAFa,kBAAkB,CAQ9B;IAED;;;OAGG;IACH,oCAFa,kBAAkB,CAoB9B;IAED;;;;OAIG;IACH,mCAHW,MAAM,GACJ,kBAAkB,CA4C9B;CACJ;;iBA/Ha,MAAM;iBACN,MAAM;;;;qBACN,MAAM;;;;eACN,MAAM"}

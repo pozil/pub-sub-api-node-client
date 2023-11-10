@@ -1,14 +1,17 @@
 /**
- * EventEmitter wrapper for processing Pub/Sub API events
+ * EventEmitter wrapper for processing incoming Pub/Sub API events
  * while keeping track of the topic name and the volume of events requested/received.
+ * @alias PubSubEventEmitter
+ * @global
  */
 export default class PubSubEventEmitter extends EventEmitter {
     /**
      * Create a new EventEmitter for Pub/Sub API events
      * @param {string} topicName
      * @param {number} requestedEventCount
+     * @protected
      */
-    constructor(topicName: string, requestedEventCount: number);
+    protected constructor();
     emit(eventName: any, args: any): boolean;
     /**
      * Returns the number of events that were requested during the subscription
