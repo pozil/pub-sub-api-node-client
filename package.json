@@ -1,6 +1,6 @@
 {
     "name": "salesforce-pubsub-api-client",
-    "version": "3.0.2",
+    "version": "3.1.0",
     "type": "module",
     "description": "A node client for the Salesforce Pub/Sub API",
     "author": "pozil",
@@ -22,19 +22,19 @@
         "prepublishOnly": "npm run build"
     },
     "dependencies": {
-        "@grpc/grpc-js": "^1.9.0",
+        "@grpc/grpc-js": "^1.9.9",
         "@grpc/proto-loader": "^0.7.10",
         "avro-js": "^1.11.3",
         "certifi": "^14.5.15",
         "dotenv": "^16.3.1",
         "jsforce": "^1.11.1",
-        "undici": "^5.25.4"
+        "undici": "^5.27.2"
     },
     "devDependencies": {
         "@chialab/esbuild-plugin-meta-url": "^0.17.7",
-        "eslint": "^8.51.0",
+        "eslint": "^8.53.0",
         "husky": "^8.0.3",
-        "lint-staged": "^14.0.1",
+        "lint-staged": "^15.0.2",
         "prettier": "^3.0.3",
         "tsup": "^7.2.0",
         "typescript": "^5.2.2"
