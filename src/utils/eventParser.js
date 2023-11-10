@@ -1,5 +1,12 @@
 import avro from 'avro-js';
 
+/**
+ * Parses the Avro encoded data of an event agains a schema
+ * @param {*} schema Avro schema
+ * @param {*} event Avro encoded data of the event
+ * @returns {*} parsed event data
+ * @protected
+ */
 export function parseEvent(schema, event) {
     const allFields = schema.type.getFields();
     const replayId = decodeReplayId(event.replayId);
@@ -45,6 +52,7 @@ export function parseEvent(schema, event) {
  * This is used to eliminate intermediate 'types' left by Avro.
  * For example: { city : { string: 'SFO' } } becomes { city: 'SFO' }
  * @param {Object} theObject the object to fransform
+ * @private
  */
 function flattenSinglePropertyObjects(theObject) {
     Object.entries(theObject).forEach(([key, value]) => {
@@ -62,10 +70,11 @@ function flattenSinglePropertyObjects(theObject) {
 }
 
 /**
- *
+ * Parses a bit map of modified fields
  * @param {Object[]} allFields
  * @param {string[]} fieldBitmapsAsHex
- * @returns
+ * @returns {string[]} array of modified field names
+ * @private
  */
 function parseFieldBitmaps(allFields, fieldBitmapsAsHex) {
     if (fieldBitmapsAsHex.length === 0) {
@@ -104,6 +113,12 @@ function parseFieldBitmaps(allFields, fieldBitmapsAsHex) {
     return fieldNames;
 }
 
+/**
+ * Extracts the children of a parent field
+ * @param {*} parentField
+ * @returns {Object[]} child fields
+ * @private
+ */
 function getChildFields(parentField) {
     const types = parentField._type.getTypes();
     let fields = [];
@@ -120,6 +135,7 @@ function getChildFields(parentField) {
  * @param {Field[]} fields list of Avro Field
  * @param {string} fieldBitmapAsHex
  * @returns {string[]} field names
+ * @private
  */
 function getFieldNamesFromBitmap(fields, fieldBitmapAsHex) {
     // Convert hex to binary and reverse bits
@@ -139,6 +155,7 @@ function getFieldNamesFromBitmap(fields, fieldBitmapAsHex) {
  * Decodes the value of a replay ID from a buffer
  * @param {Buffer} encodedReplayId
  * @returns {number} decoded replay ID
+ * @protected
  */
 export function decodeReplayId(encodedReplayId) {
     return Number(encodedReplayId.readBigUInt64BE());
@@ -148,6 +165,7 @@ export function decodeReplayId(encodedReplayId) {
  * Encodes the value of a replay ID
  * @param {number} replayId
  * @returns {Buffer} encoded replay ID
+ * @protected
  */
 export function encodeReplayId(replayId) {
     const buf = Buffer.allocUnsafe(8);
@@ -159,6 +177,7 @@ export function encodeReplayId(replayId) {
  * Converts a hexadecimal string into a string binary representation
  * @param {string} hex
  * @returns {string}
+ * @private
  */
 function hexToBin(hex) {
     let bin = hex.substring(2); // Remove 0x prefix
