@@ -46,11 +46,7 @@ PUB_SUB_ENDPOINT=api.pubsub.salesforce.com:7443
 When connecting to the Pub/Sub API, use the following method instead of the standard `connect()` method to specify authentication information:
 
 ```js
-await client.connectWithAuth(
-    accessToken,
-    instanceUrl,
-    organizationId
-);
+await client.connectWithAuth(accessToken, instanceUrl, organizationId);
 ```
 
 ### Username/password flow
@@ -117,11 +113,13 @@ Here's an example that will get you started quickly. It listens to a single acco
 
             // Handle incoming events
             eventEmitter.on('data', (event) => {
-                console.log(`Handling ${event.payload.ChangeEventHeader.entityName} change event `
-                    + `with ID ${event.replayId} `
-                    + `on channel ${eventEmitter.getTopicName()} `
-                    + `(${eventEmitter.getReceivedEventCount()}/${eventEmitter.getRequestedEventCount()} `
-                    + `events received so far)`);
+                console.log(
+                    `Handling ${event.payload.ChangeEventHeader.entityName} change event ` +
+                        `with ID ${event.replayId} ` +
+                        `on channel ${eventEmitter.getTopicName()} ` +
+                        `(${eventEmitter.getReceivedEventCount()}/${eventEmitter.getRequestedEventCount()} ` +
+                        `events received so far)`
+                );
                 console.log(JSON.stringify(event, null, 2));
             });
 
