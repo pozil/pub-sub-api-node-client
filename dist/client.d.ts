@@ -32,11 +32,10 @@ export default class PubSubApiClient {
      * Connects to the Pub/Sub API with user-supplied authentication
      * @param {string} accessToken
      * @param {string} instanceUrl
-     * @param {string} organizationId
-     * @param {string} username
+     * @param {string} [organizationId] optional organizationId. If you don't provide one, we'll attempt to parse it from the accessToken.
      * @returns {Promise<void>} Promise that resolves once the connection is established
      */
-    connectWithAuth(accessToken: string, instanceUrl: string, organizationId: string, username: string): Promise<void>;
+    connectWithAuth(accessToken: string, instanceUrl: string, organizationId?: string): Promise<void>;
     /**
      * Subscribes to a topic and retrieves all past events in retention window
      * @param {string} topicName name of the topic that we're subscribing to

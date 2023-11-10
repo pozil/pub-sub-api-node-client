@@ -49,8 +49,7 @@ When connecting to the Pub/Sub API, use the following method instead of the stan
 await client.connectWithAuth(
     accessToken,
     instanceUrl,
-    organizationId,
-    username
+    organizationId
 );
 ```
 
