@@ -16,6 +16,10 @@ See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-ap
     -   [Subscribe to past events in retention window](#subscribe-to-past-events-in-retention-window)
     -   [Handle gRPC stream lifecycle events](#handle-grpc-stream-lifecycle-events)
     -   [Use a custom logger](#use-a-custom-logger)
+-   [Reference](#reference)
+    -   [PubSubApiClient](#pubsubapiclient)
+    -   [PubSubEventEmitter](#pubsubeventemmiter)
+    -   [EventParseError](#eventparseerror)
 
 ## Installation and Configuration
 
@@ -318,3 +322,253 @@ import pino from 'pino';
 const logger = pino();
 const client = new PubSubApiClient(logger);
 ```
+
+## Reference
+
+### PubSubApiClient
+
+Client for the Salesforce Pub/Sub API
+
+#### PubSubApiClient(logger)
+
+Builds a new Pub/Sub API client.
+
+<table>
+<tr>
+    <th>Name</th>
+    <th>Type</th>
+    <th>Description</th>
+</tr>
+<tr>
+    <td><code>logger</code></td>
+    <td>Logger</td>
+    <td>an optional custom logger. The client uses the console if no value is supplied.</td>
+</tr>
+</table>
+
+#### close()
+
+Closes the gRPC connection. The client will no longer receive events for any topic.
+
+#### async connect() → {Promise.&lt;void&gt;}
+
+Authenticates with Salesforce then, connects to the Pub/Sub API.
+
+Returns: Promise that resolves once the connection is established.
+
+#### async connectWithAuth(accessToken, instanceUrl, organizationIdopt) → {Promise.&lt;void&gt;}
+
+Connects to the Pub/Sub API with user-supplied authentication.
+
+Returns: Promise that resolves once the connection is established.
+
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+    </tr>
+    <tr>
+        <td><code>accessToken</code></td>
+        <td>string</td>
+        <td>Salesforce access token</td>
+    </tr>
+    <tr>
+        <td><code>instanceUrl</code></td>
+        <td>string</td>
+        <td>Salesforce instance URL</td>
+    </tr>
+    <tr>
+        <td><code>organizationId</code></td>
+        <td>string</td>
+        <td>optional organization ID. If you don't provide one, we'll attempt to parse it from the accessToken.</td>
+    </tr>
+</table>
+
+#### async publish(topicName, payload, correlationKeyopt) → {Promise.&lt;PublishResult&gt;}
+
+Publishes a payload to a topic using the gRPC client.
+
+Returns: Promise holding a `PublishResult` object with `replayId` and `correlationKey`.
+
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+    </tr>
+    <tr>
+        <td><code>topicName</code></td>
+        <td>string</td>
+        <td>name of the topic that we're subscribing to</td>
+    </tr>
+    <tr>
+        <td><code>payload</code></td>
+        <td>Object</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td><code>correlationKey</code></td>
+        <td>string</td>
+        <td>optional correlation key. If you don't provide one, we'll generate a random UUID for you.</td>
+    </tr>
+</table>
+
+#### async subscribe(topicName, numRequested) → {Promise.&lt;EventEmitter&gt;}
+
+Subscribes to a topic.
+
+Returns: Promise that holds an `EventEmitter` that allows you to listen to received events and stream lifecycle events.
+
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+    </tr>
+    <tr>
+        <td><code>topicName</code></td>
+        <td>string</td>
+        <td>name of the topic that we're subscribing to</td>
+    </tr>
+    <tr>
+        <td><code>numRequested</code></td>
+        <td>number</td>
+        <td>number of events requested</td>
+    </tr>
+</table>
+
+#### async subscribeFromEarliestEvent(topicName, numRequested) → {Promise.&lt;EventEmitter&gt;}
+
+Subscribes to a topic and retrieves all past events in retention window.
+
+Returns: Promise that holds an `EventEmitter` that allows you to listen to received events and stream lifecycle events.
+
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+    </tr>
+    <tr>
+        <td><code>topicName</code></td>
+        <td>string</td>
+        <td>name of the topic that we're subscribing to</td>
+    </tr>
+    <tr>
+        <td><code>numRequested</code></td>
+        <td>number</td>
+        <td>number of events requested</td>
+    </tr>
+</table>
+
+#### async subscribeFromReplayId(topicName, numRequested, replayId) → {Promise.&lt;EventEmitter&gt;}
+
+Subscribes to a topic and retrieve past events starting from a replay ID.
+
+Returns: Promise that holds an `EventEmitter` that allows you to listen to received events and stream lifecycle events.
+
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+    </tr>
+    <tr>
+        <td><code>topicName</code></td>
+        <td>string</td>
+        <td>name of the topic that we're subscribing to</td>
+    </tr>
+    <tr>
+        <td><code>numRequested</code></td>
+        <td>number</td>
+        <td>number of events requested</td>
+    </tr>
+    <tr>
+        <td><code>replayId</code></td>
+        <td>number</td>
+        <td>replay ID</td>
+    </tr>
+</table>
+
+### PubSubEventEmitter
+
+EventEmitter wrapper for processing incoming Pub/Sub API events while keeping track of the topic name and the volume of events requested/received.
+
+The emitter sends the following events:
+
+<table>
+    <tr>
+        <th>Event Name</th>
+        <th>Event Data</th>
+        <th>Description</th>
+    </tr>
+    <tr>
+        <td><code>data</code></td>
+        <td>Object</td>
+        <td>Client received a new event. The attached data is the parsed event data.</td>
+    </tr>
+    <tr>
+        <td><code>error</code></td>
+        <td><code>EventParseError | Object</code></td>
+        <td>Signals an event parsing error or a gRPC stream error.</td>
+    </tr>
+    <tr>
+        <td><code>lastevent</code></td>
+        <td>void</td>
+        <td>Signals that we received the last event that the client requested. The stream will end shortly.</td>
+    </tr>
+    <tr>
+        <td><code>keepalive</code></td>
+        <td><code>{ latestReplayId: number, pendingNumRequested: number }</code></td>
+        <td>Server publishes this keep alive message every 270 seconds (or less) if there are no events</td>
+    </tr>
+    <tr>
+        <td><code>end</code></td>
+        <td>void</td>
+        <td>Signals the end of the gRPC stream.</td>
+    </tr>
+    <tr>
+        <td><code>status</code></td>
+        <td>Object</td>
+        <td>Misc gRPC stream status information.</td>
+    </tr>
+</table>
+
+### EventParseError
+
+Holds the information related to an event parsing error. This class attempts to extract the event replay ID from the event that caused the error.
+
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+    </tr>
+    <tr>
+        <td><code>message</code></td>
+        <td>string</td>
+        <td>The error message.</td>
+    </tr>
+    <tr>
+        <td><code>cause</code></td>
+        <td>Error</td>
+        <td>The cause of the error.</td>
+    </tr>
+    <tr>
+        <td><code>replayId</code></td>
+        <td>number</td>
+        <td>The replay ID of the event at the origin of the error. Could be undefined if we're not able to extract it from the event data.</td>
+    </tr>
+    <tr>
+        <td><code>event</code></td>
+        <td>Object</td>
+        <td>The un-parsed event data at the origin of the error.</td>
+    </tr>
+    <tr>
+        <td><code>latestReplayId</code>
+        </td>
+        <td>number</td>
+        <td>The latest replay ID that was received before the error.</td>
+    </tr>
+</table>
