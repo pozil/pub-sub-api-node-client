@@ -18,7 +18,7 @@ See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-ap
     -   [Use a custom logger](#use-a-custom-logger)
 -   [Reference](#reference)
     -   [PubSubApiClient](#pubsubapiclient)
-    -   [PubSubEventEmitter](#pubsubeventemmiter)
+    -   [PubSubEventEmitter](#pubsubeventemitter)
     -   [EventParseError](#eventparseerror)
 
 ## Installation and Configuration
