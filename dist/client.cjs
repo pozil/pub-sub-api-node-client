@@ -477,6 +477,33 @@ function base64url(input) {
 }
 
 // src/client.js
+var CUSTOM_LONG_AVRO_TYPE = import_avro_js2.default.types.LongType.using({
+  fromBuffer: (buf) => {
+    const big = buf.readBigInt64LE();
+    if (big > Number.MAX_SAFE_INTEGER) {
+      return big;
+    }
+    return Number(BigInt.asIntN(64, big));
+  },
+  toBuffer: (n) => {
+    const buf = Buffer.alloc(8);
+    if (n instanceof BigInt) {
+      buf.writeBigInt64LE(n);
+    } else {
+      buf.writeBigInt64LE(BigInt(n));
+    }
+    return buf;
+  },
+  fromJSON: BigInt,
+  toJSON: Number,
+  isValid: (n) => {
+    const type = typeof n;
+    return type === "bigint" || type === "number";
+  },
+  compare: (n1, n2) => {
+    return n1 === n2 ? 0 : n1 < n2 ? -1 : 1;
+  }
+});
 var PubSubApiClient = class {
   /**
    * gRPC client
@@ -688,7 +715,7 @@ var PubSubApiClient = class {
                 replayId = decodeReplayId(event.replayId);
               } catch (error2) {
               }
-              const message = replayId ? `Failed to parse event with replay ID ${this.replayId}` : `Failed to parse event with unknown replay ID (latest replay ID was ${latestReplayId})`;
+              const message = replayId ? `Failed to parse event with replay ID ${replayId}` : `Failed to parse event with unknown replay ID (latest replay ID was ${latestReplayId})`;
               const parseError = new EventParseError(
                 message,
                 error,
@@ -697,6 +724,7 @@ var PubSubApiClient = class {
                 latestReplayId
               );
               eventEmitter.emit("error", parseError);
+              this.#logger.error(parseError);
             }
             if (eventEmitter.getReceivedEventCount() === eventEmitter.getRequestedEventCount()) {
               eventEmitter.emit("lastevent");
@@ -825,7 +853,9 @@ var PubSubApiClient = class {
             if (schemaError) {
               reject(schemaError);
             } else {
-              const schemaType = import_avro_js2.default.parse(res.schemaJson);
+              const schemaType = import_avro_js2.default.parse(res.schemaJson, {
+                registry: { long: CUSTOM_LONG_AVRO_TYPE }
+              });
               this.#logger.info(
                 `Topic schema loaded: ${topicName}`
               );

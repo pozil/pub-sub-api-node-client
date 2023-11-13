@@ -1,23 +1,4 @@
 /**
- * @typedef {Object} PublishResult
- * @property {number} replayId
- * @property {string} correlationKey
- * @global
- */
-/**
- * @typedef {Object} Schema
- * @property {string} id
- * @property {Object} type
- * @protected
- */
-/**
- * @typedef {Object} Logger
- * @property {Function} debug
- * @property {Function} info
- * @property {Function} error
- * @protected
- */
-/**
  * Client for the Salesforce Pub/Sub API
  * @alias PubSubApiClient
  * @global
