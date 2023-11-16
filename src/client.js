@@ -47,13 +47,13 @@ import SalesforceAuth from './utils/auth.js';
 const CUSTOM_LONG_AVRO_TYPE = avro.types.LongType.using({
     fromBuffer: (buf) => {
         const big = buf.readBigInt64LE();
-        if (big > Number.MAX_SAFE_INTEGER) {
+        if (big < Number.MIN_SAFE_INTEGER || big > Number.MAX_SAFE_INTEGER) {
             return big;
         }
         return Number(BigInt.asIntN(64, big));
     },
     toBuffer: (n) => {
-        const buf = Buffer.alloc(8);
+        const buf = Buffer.allocUnsafe(8);
         if (n instanceof BigInt) {
             buf.writeBigInt64LE(n);
         } else {
@@ -65,7 +65,7 @@ const CUSTOM_LONG_AVRO_TYPE = avro.types.LongType.using({
     toJSON: Number,
     isValid: (n) => {
         const type = typeof n;
-        return type === 'bigint' || type === 'number';
+        return (type === 'number' && n % 1 === 0) || type === 'bigint';
     },
     compare: (n1, n2) => {
         return n1 === n2 ? 0 : n1 < n2 ? -1 : 1;
