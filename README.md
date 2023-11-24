@@ -128,7 +128,7 @@ Here's an example that will get you started quickly. It listens to a single acco
             });
 
             // Handle last requested event
-            eventEmitter.on('lastevent', (event) => {
+            eventEmitter.on('lastevent', () => {
                 console.log(
                     `Reached last requested event on channel ${eventEmitter.getTopicName()}.`
                 );
