@@ -650,6 +650,16 @@ var PubSubApiClient = class {
    */
   async #subscribe(subscribeRequest) {
     try {
+      if (typeof subscribeRequest.numRequested !== "number") {
+        throw new Error(
+          `Expected a number type for number of requested events but got ${typeof subscribeRequest.numRequested}`
+        );
+      }
+      if (!Number.isSafeInteger(subscribeRequest.numRequested) || subscribeRequest.numRequested < 1) {
+        throw new Error(
+          `Expected an integer greater than 1 for number of requested events but got ${subscribeRequest.numRequested}`
+        );
+      }
       if (!this.#client) {
         throw new Error("Pub/Sub API client is not connected.");
       }
