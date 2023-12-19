@@ -12,6 +12,7 @@ See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-ap
 -   [Basic Example](#basic-example)
 -   [Other Examples](#other-examples)
     -   [Publish a platform event](#publish-a-platform-event)
+    -   [Subscribe to an infinite number of events](#subscribe-to-an-infinite-number-of-events)
     -   [Subscribe with a replay ID](#subscribe-with-a-replay-id)
     -   [Subscribe to past events in retention window](#subscribe-to-past-events-in-retention-window)
     -   [Handle gRPC stream lifecycle events](#handle-grpc-stream-lifecycle-events)
@@ -262,6 +263,25 @@ const payload = {
 };
 const publishResult = await client.publish('/event/Sample__e', payload);
 console.log('Published event: ', JSON.stringify(publishResult));
+```
+
+### Subscribe to an infinite number of events
+
+You may subscribe to an infinite number of events by reconnecting the client automatically when the last requested event is received.
+
+```js
+// Handle last requested event
+subscription.on('lastevent', async () => {
+    try {
+        // Re-subscribe to more events
+        subscription = await client.subscribe(
+            subscription.getTopicName(),
+            NUMBER_OF_EVENTS
+        );
+    } catch (error) {
+        console.log(error);
+    }
+});
 ```
 
 ### Subscribe with a replay ID
