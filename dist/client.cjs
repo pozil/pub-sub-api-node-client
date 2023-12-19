@@ -696,9 +696,6 @@ var PubSubApiClient = class {
       if (!this.#client) {
         throw new Error("Pub/Sub API client is not connected.");
       }
-      const schema = await this.#getEventSchema(
-        subscribeRequest.topicName
-      );
       const subscription = this.#client.Subscribe();
       subscription.write(subscribeRequest);
       this.#logger.info(
@@ -714,8 +711,22 @@ var PubSubApiClient = class {
           this.#logger.info(
             `Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
           );
-          data.events.forEach((event) => {
+          data.events.forEach(async (event) => {
             try {
+              let schema = await this.#getEventSchema(
+                subscribeRequest.topicName
+              );
+              if (schema.id !== event.schemaId) {
+                this.#logger.info(
+                  `Event schema changed, reloading: ${subscribeRequest.topicName}`
+                );
+                this.#clearEventSchemaFromCache(
+                  subscribeRequest.topicName
+                );
+                schema = await this.#getEventSchema(
+                  subscribeRequest.topicName
+                );
+              }
               const parsedEvent = parseEvent(schema, event);
               this.#logger.debug(parsedEvent);
               eventEmitter.emit("data", parsedEvent);
@@ -878,5 +889,8 @@ var PubSubApiClient = class {
         }
       });
     });
+  }
+  #clearEventSchemaFromCache(topicName) {
+    this.#schemaChache.delete(topicName);
   }
 };

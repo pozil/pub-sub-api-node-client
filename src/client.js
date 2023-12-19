@@ -281,6 +281,7 @@ export default class PubSubApiClient {
      */
     async #subscribe(subscribeRequest) {
         try {
+            // Check number of requested events
             if (typeof subscribeRequest.numRequested !== 'number') {
                 throw new Error(
                     `Expected a number type for number of requested events but got ${typeof subscribeRequest.numRequested}`
@@ -294,13 +295,12 @@ export default class PubSubApiClient {
                     `Expected an integer greater than 1 for number of requested events but got ${subscribeRequest.numRequested}`
                 );
             }
+            // Check client connection
             if (!this.#client) {
                 throw new Error('Pub/Sub API client is not connected.');
             }
-            const schema = await this.#getEventSchema(
-                subscribeRequest.topicName
-            );
 
+            // Send subscription request
             const subscription = this.#client.Subscribe();
             subscription.write(subscribeRequest);
             this.#logger.info(
@@ -318,13 +318,31 @@ export default class PubSubApiClient {
                     this.#logger.info(
                         `Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
                     );
-                    data.events.forEach((event) => {
+                    data.events.forEach(async (event) => {
                         try {
+                            // Load schema from cache or from the client
+                            let schema = await this.#getEventSchema(
+                                subscribeRequest.topicName
+                            );
+                            // Make sure that schema ID matches. If not, event fields have changed
+                            // and client needs to reload schema
+                            if (schema.id !== event.schemaId) {
+                                this.#logger.info(
+                                    `Event schema changed, reloading: ${subscribeRequest.topicName}`
+                                );
+                                this.#clearEventSchemaFromCache(
+                                    subscribeRequest.topicName
+                                );
+                                schema = await this.#getEventSchema(
+                                    subscribeRequest.topicName
+                                );
+                            }
+                            // Parse event thanks to schema
                             const parsedEvent = parseEvent(schema, event);
                             this.#logger.debug(parsedEvent);
                             eventEmitter.emit('data', parsedEvent);
                         } catch (error) {
-                            // Report event parsing error
+                            // Report event parsing error with replay ID if possible
                             let replayId;
                             try {
                                 replayId = decodeReplayId(event.replayId);
@@ -496,5 +514,9 @@ export default class PubSubApiClient {
                 }
             });
         });
+    }
+
+    #clearEventSchemaFromCache(topicName) {
+        this.#schemaChache.delete(topicName);
     }
 }
