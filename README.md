@@ -110,10 +110,9 @@ Here's an example that will get you started quickly. It listens to a single acco
             const client = new PubSubApiClient();
             await client.connect();
 
-            // Subscribe to a single incoming account change event
+            // Subscribe to account change events
             const eventEmitter = await client.subscribe(
-                '/data/AccountChangeEvent',
-                1
+                '/data/AccountChangeEvent'
             );
 
             // Handle incoming events
@@ -126,15 +125,6 @@ Here's an example that will get you started quickly. It listens to a single acco
                         `events received so far)`
                 );
                 console.log(JSON.stringify(event, null, 2));
-            });
-
-            // Handle last requested event
-            eventEmitter.on('lastevent', () => {
-                console.log(
-                    `Reached last requested event on channel ${eventEmitter.getTopicName()}.`
-                );
-                // At this point the gRPC client will close automatically
-                // unless you re-subscribe to request more events (default Pub/Sub API behavior)
             });
         } catch (error) {
             console.error(error);
@@ -152,7 +142,7 @@ Here's an example that will get you started quickly. It listens to a single acco
     Connected to Salesforce org https://pozil-dev-ed.my.salesforce.com as grpc@pozil.com
     Connected to Pub/Sub API endpoint api.pubsub.salesforce.com:7443
     Topic schema loaded: /data/AccountChangeEvent
-    Subscribe request sent for 1 events from /data/AccountChangeEvent...
+    Subscribe request sent for 100 events from /data/AccountChangeEvent...
     ```
 
     At this point the script will be on hold and will wait for events.
@@ -163,7 +153,7 @@ Here's an example that will get you started quickly. It listens to a single acco
 
     ```
     Received 1 events, latest replay ID: 18098167
-    Handling Account change event with ID 18098167 on channel /data/AccountChangeEvent (1/1 events received so far)
+    Handling Account change event with ID 18098167 on channel /data/AccountChangeEvent (1/100 events received so far)
     {
         "replayId": 18098167,
         "payload": {
@@ -240,14 +230,6 @@ Here's an example that will get you started quickly. It listens to a single acco
     Note that the change event payloads include all object fields but fields that haven't changed are null. In the above example, the only changes are the Billing State, Billing City and Last Modified Date.
 
     Use the values from `ChangeEventHeader.nulledFields`, `ChangeEventHeader.diffFields` and `ChangeEventHeader.changedFields` to identify actual value changes.
-
-    After receiving the number of requested events, the script will terminate with these messages:
-
-    ```
-    Reached last requested event on channel /data/AccountChangeEvent
-    gRPC stream status: {"code":0,"details":"","metadata":{}}
-    gRPC stream ended
-    ```
 
 ## Other Examples
 
