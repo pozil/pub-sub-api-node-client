@@ -14,20 +14,32 @@ export default class PubSubEventEmitter extends EventEmitter {
     protected constructor();
     emit(eventName: any, args: any): boolean;
     /**
-     * Returns the number of events that were requested during the subscription
+     * Returns the number of events that were requested when subscribing.
      * @returns {number} the number of events that were requested
      */
     getRequestedEventCount(): number;
     /**
-     * Returns the number of events that were received since the subscription
+     * Returns the number of events that were received since subscribing.
      * @returns {number} the number of events that were received
      */
     getReceivedEventCount(): number;
     /**
-     * Returns the topic name for this subscription
+     * Returns the topic name for this subscription.
      * @returns {string} the topic name
      */
     getTopicName(): string;
+    /**
+     * Returns the replay ID of the last processed event or null if no event was processed yet.
+     * @return {number} replay ID
+     */
+    getLatestReplayId(): number;
+    /**
+     * @protected
+     * Resets the requested/received event counts.
+     * This method should only be be used internally by the client when it resubscribes.
+     * @param {number} newRequestedEventCount
+     */
+    protected _resetEventCount(newRequestedEventCount: number): void;
     #private;
 }
 import { EventEmitter } from 'events';

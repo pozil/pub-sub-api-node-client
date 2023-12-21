@@ -7,8 +7,9 @@ import certifi from 'certifi';
 import grpc from '@grpc/grpc-js';
 import protoLoader from '@grpc/proto-loader';
 
-import EventParseError from './eventParseError.js';
-import PubSubEventEmitter from './pubSubEventEmitter.js';
+import EventParseError from './utils/eventParseError.js';
+import PubSubEventEmitter from './utils/pubSubEventEmitter.js';
+import { CustomLongAvroType } from './utils/avroHelper.js';
 import Configuration from './utils/configuration.js';
 import {
     parseEvent,
@@ -36,41 +37,15 @@ import SalesforceAuth from './utils/auth.js';
  * @property {Function} debug
  * @property {Function} info
  * @property {Function} error
+ * @property {Function} warn
  * @protected
  */
 
 /**
- * Custom Long Avro type used for deserializing large numbers with BitInt.
- * This fixes a deserialization bug with Avro not supporting large values.
- * @private
+ * Maximum event batch size suppported by the Pub/Sub API as documented here:
+ * https://developer.salesforce.com/docs/platform/pub-sub-api/guide/flow-control.html
  */
-const CUSTOM_LONG_AVRO_TYPE = avro.types.LongType.using({
-    fromBuffer: (buf) => {
-        const big = buf.readBigInt64LE();
-        if (big < Number.MIN_SAFE_INTEGER || big > Number.MAX_SAFE_INTEGER) {
-            return big;
-        }
-        return Number(BigInt.asIntN(64, big));
-    },
-    toBuffer: (n) => {
-        const buf = Buffer.allocUnsafe(8);
-        if (n instanceof BigInt) {
-            buf.writeBigInt64LE(n);
-        } else {
-            buf.writeBigInt64LE(BigInt(n));
-        }
-        return buf;
-    },
-    fromJSON: BigInt,
-    toJSON: Number,
-    isValid: (n) => {
-        const type = typeof n;
-        return (type === 'number' && n % 1 === 0) || type === 'bigint';
-    },
-    compare: (n1, n2) => {
-        return n1 === n2 ? 0 : n1 < n2 ? -1 : 1;
-    }
-});
+const MAX_EVENT_BATCH_SIZE = 100;
 
 /**
  * Client for the Salesforce Pub/Sub API
@@ -90,15 +65,22 @@ export default class PubSubApiClient {
      */
     #schemaChache;
 
+    /**
+     * Map of subscribitions indexed by topic name
+     * @type {Map<string,Object>}
+     */
+    #subscriptions;
+
     #logger;
 
     /**
      * Builds a new Pub/Sub API client
-     * @param {Logger} logger an optional custom logger. The client uses the console if no value is supplied.
+     * @param {Logger} [logger] an optional custom logger. The client uses the console if no value is supplied.
      */
     constructor(logger = console) {
         this.#logger = logger;
         this.#schemaChache = new Map();
+        this.#subscriptions = new Map();
         // Check and load config
         try {
             Configuration.load();
@@ -231,11 +213,11 @@ export default class PubSubApiClient {
     /**
      * Subscribes to a topic and retrieves all past events in retention window.
      * @param {string} topicName name of the topic that we're subscribing to
-     * @param {number} numRequested number of events requested
+     * @param {number} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
      * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
      */
-    async subscribeFromEarliestEvent(topicName, numRequested) {
+    async subscribeFromEarliestEvent(topicName, numRequested = null) {
         return this.#subscribe({
             topicName,
             numRequested,
@@ -244,9 +226,9 @@ export default class PubSubApiClient {
     }
 
     /**
-     * Subscribes to a topic and retrieve past events starting from a replay ID
+     * Subscribes to a topic and retrieves past events starting from a replay ID.
      * @param {string} topicName name of the topic that we're subscribing to
-     * @param {number} numRequested number of events requested
+     * @param {number} numRequested number of events requested. If null, the client keeps the subscription alive forever.
      * @param {number} replayId replay ID
      * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
@@ -261,13 +243,13 @@ export default class PubSubApiClient {
     }
 
     /**
-     * Subscribes to a topic
+     * Subscribes to a topic.
      * @param {string} topicName name of the topic that we're subscribing to
-     * @param {number} numRequested number of events requested
+     * @param {number} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
      * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
      */
-    async subscribe(topicName, numRequested) {
+    async subscribe(topicName, numRequested = null) {
         return this.#subscribe({
             topicName,
             numRequested
@@ -280,37 +262,54 @@ export default class PubSubApiClient {
      * @return {PubSubEventEmitter} emitter that allows you to listen to received events and stream lifecycle events
      */
     async #subscribe(subscribeRequest) {
+        let { topicName, numRequested } = subscribeRequest;
         try {
             // Check number of requested events
-            if (typeof subscribeRequest.numRequested !== 'number') {
-                throw new Error(
-                    `Expected a number type for number of requested events but got ${typeof subscribeRequest.numRequested}`
-                );
-            }
-            if (
-                !Number.isSafeInteger(subscribeRequest.numRequested) ||
-                subscribeRequest.numRequested < 1
-            ) {
-                throw new Error(
-                    `Expected an integer greater than 1 for number of requested events but got ${subscribeRequest.numRequested}`
-                );
+            let isInfiniteEventRequest = false;
+            if (numRequested === null) {
+                isInfiniteEventRequest = true;
+                subscribeRequest.numRequested = numRequested =
+                    MAX_EVENT_BATCH_SIZE;
+            } else {
+                if (typeof numRequested !== 'number') {
+                    throw new Error(
+                        `Expected a number type for number of requested events but got ${typeof numRequested}`
+                    );
+                }
+                if (!Number.isSafeInteger(numRequested) || numRequested < 1) {
+                    throw new Error(
+                        `Expected an integer greater than 1 for number of requested events but got ${numRequested}`
+                    );
+                }
+                if (numRequested > MAX_EVENT_BATCH_SIZE) {
+                    this.#logger.warn(
+                        `The number of requested events for ${topicName} exceeds max event batch size (${MAX_EVENT_BATCH_SIZE}).`
+                    );
+                }
             }
             // Check client connection
             if (!this.#client) {
                 throw new Error('Pub/Sub API client is not connected.');
             }
 
+            // Check for an existing subscription
+            let subscription = this.#subscriptions.get(topicName);
+
             // Send subscription request
-            const subscription = this.#client.Subscribe();
+            if (!subscription) {
+                subscription = this.#client.Subscribe();
+                this.#subscriptions.set(topicName, subscription);
+            }
+
             subscription.write(subscribeRequest);
             this.#logger.info(
-                `Subscribe request sent for ${subscribeRequest.numRequested} events from ${subscribeRequest.topicName}...`
+                `Subscribe request sent for ${numRequested} events from ${topicName}...`
             );
 
             // Listen to new events
             const eventEmitter = new PubSubEventEmitter(
-                subscribeRequest.topicName,
-                subscribeRequest.numRequested
+                topicName,
+                numRequested
             );
             subscription.on('data', (data) => {
                 const latestReplayId = decodeReplayId(data.latestReplayId);
@@ -320,22 +319,16 @@ export default class PubSubApiClient {
                     );
                     data.events.forEach(async (event) => {
                         try {
-                            // Load schema from cache or from the client
-                            let schema = await this.#getEventSchema(
-                                subscribeRequest.topicName
-                            );
-                            // Make sure that schema ID matches. If not, event fields have changed
+                            // Load event schema from cache or from the client
+                            let schema = await this.#getEventSchema(topicName);
+                            // Make sure that schema ID matches. If not, event fields may have changed
                             // and client needs to reload schema
-                            if (schema.id !== event.schemaId) {
+                            if (schema.id !== event.event.schemaId) {
                                 this.#logger.info(
-                                    `Event schema changed, reloading: ${subscribeRequest.topicName}`
+                                    `Event schema changed (${schema.id} != ${event.event.schemaId}), reloading: ${topicName}`
                                 );
-                                this.#clearEventSchemaFromCache(
-                                    subscribeRequest.topicName
-                                );
-                                schema = await this.#getEventSchema(
-                                    subscribeRequest.topicName
-                                );
+                                this.#schemaChache.delete(topicName);
+                                schema = await this.#getEventSchema(topicName);
                             }
                             // Parse event thanks to schema
                             const parsedEvent = parseEvent(schema, event);
@@ -361,12 +354,22 @@ export default class PubSubApiClient {
                             eventEmitter.emit('error', parseError);
                             this.#logger.error(parseError);
                         }
-                        // Emit a 'lastevent' event when reaching the last requested event count
+
+                        // Handle last requested event
                         if (
                             eventEmitter.getReceivedEventCount() ===
                             eventEmitter.getRequestedEventCount()
                         ) {
-                            eventEmitter.emit('lastevent');
+                            if (isInfiniteEventRequest) {
+                                // Request additional events
+                                this.requestAdditionalEvents(
+                                    eventEmitter,
+                                    MAX_EVENT_BATCH_SIZE
+                                );
+                            } else {
+                                // Emit a 'lastevent' event when reaching the last requested event count
+                                eventEmitter.emit('lastevent');
+                            }
                         }
                     });
                 } else {
@@ -380,6 +383,7 @@ export default class PubSubApiClient {
                 }
             });
             subscription.on('end', () => {
+                this.#subscriptions.delete(topicName);
                 this.#logger.info('gRPC stream ended');
                 eventEmitter.emit('end');
             });
@@ -398,10 +402,37 @@ export default class PubSubApiClient {
             return eventEmitter;
         } catch (error) {
             throw new Error(
-                `Failed to subscribe to events for topic ${subscribeRequest.topicName}`,
+                `Failed to subscribe to events for topic ${topicName}`,
                 { cause: error }
             );
         }
+    }
+
+    /**
+     * Request additional events on an existing subscription.
+     * @param {PubSubEventEmitter} eventEmitter event emitter that was obtained in the first subscribe call
+     * @param {number} numRequested number of events requested.
+     */
+    async requestAdditionalEvents(eventEmitter, numRequested) {
+        const topicName = eventEmitter.getTopicName();
+
+        // Retrieve existing subscription
+        const subscription = this.#subscriptions.get(topicName);
+        if (!subscription) {
+            throw new Error(
+                `Failed to request additional events for topic ${topicName}, no active subscription found.`
+            );
+        }
+
+        // Request additional events
+        eventEmitter._resetEventCount(numRequested);
+        subscription.write({
+            topicName,
+            numRequested: numRequested
+        });
+        this.#logger.debug(
+            `Resubscribing to a batch of ${numRequested} events for: ${topicName}`
+        );
     }
 
     /**
@@ -500,7 +531,7 @@ export default class PubSubApiClient {
                             reject(schemaError);
                         } else {
                             const schemaType = avro.parse(res.schemaJson, {
-                                registry: { long: CUSTOM_LONG_AVRO_TYPE }
+                                registry: { long: CustomLongAvroType }
                             });
                             this.#logger.info(
                                 `Topic schema loaded: ${topicName}`
@@ -514,9 +545,5 @@ export default class PubSubApiClient {
                 }
             });
         });
-    }
-
-    #clearEventSchemaFromCache(topicName) {
-        this.#schemaChache.delete(topicName);
     }
 }

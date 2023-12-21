@@ -1,6 +1,6 @@
 {
     "name": "salesforce-pubsub-api-client",
-    "version": "3.3.0",
+    "version": "3.4.0",
     "type": "module",
     "description": "A node client for the Salesforce Pub/Sub API",
     "author": "pozil",
@@ -28,7 +28,7 @@
         "certifi": "^14.5.15",
         "dotenv": "^16.3.1",
         "jsforce": "^1.11.1",
-        "undici": "^6.0.1"
+        "undici": "^6.2.0"
     },
     "devDependencies": {
         "@chialab/esbuild-plugin-meta-url": "^0.17.7",
