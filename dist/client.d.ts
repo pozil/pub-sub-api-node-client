@@ -75,10 +75,6 @@ export type PublishResult = {
     replayId: number;
     correlationKey: string;
 };
-export type Schema = {
-    id: string;
-    type: any;
-};
 export type Logger = {
     debug: Function;
     info: Function;

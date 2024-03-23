@@ -40,6 +40,71 @@ var import_certifi = __toESM(require("certifi"), 1);
 var import_grpc_js = __toESM(require("@grpc/grpc-js"), 1);
 var import_proto_loader = __toESM(require("@grpc/proto-loader"), 1);
 
+// src/utils/schemaCache.js
+var SchemaCache = class {
+  /**
+   * Map of schemas indexed by ID
+   * @type {Map<string,Schema>}
+   */
+  #schemaChache;
+  /**
+   * Map of schemas IDs indexed by topic name
+   * @type {Map<string,string>}
+   */
+  #topicNameCache;
+  constructor() {
+    this.#schemaChache = /* @__PURE__ */ new Map();
+    this.#topicNameCache = /* @__PURE__ */ new Map();
+  }
+  /**
+   * Retrieves a schema based on its ID
+   * @param {string} schemaId
+   * @returns {Schema} schema or undefined if not found
+   */
+  getFromId(schemaId) {
+    return this.#schemaChache.get(schemaId);
+  }
+  /**
+   * Retrieves a schema based on a topic name
+   * @param {string} topicName
+   * @returns {Schema} schema or undefined if not found
+   */
+  getFromTopicName(topicName) {
+    const schemaId = this.#topicNameCache.get(topicName);
+    if (schemaId) {
+      return this.getFromId(schemaId);
+    }
+    return void 0;
+  }
+  /**
+   * Caches a schema
+   * @param {Schema} schema
+   */
+  set(schema) {
+    this.#schemaChache.set(schema.id, schema);
+  }
+  /**
+   * Caches a schema with a topic name
+   * @param {string} topicName
+   * @param {Schema} schema
+   */
+  setWithTopicName(topicName, schema) {
+    this.#topicNameCache.set(topicName, schema.id);
+    this.set(schema);
+  }
+  /**
+   * Delete a schema based on the topic name
+   * @param {string} topicName
+   */
+  deleteWithTopicName(topicName) {
+    const schemaId = this.#topicNameCache.get(topicName);
+    if (schemaId) {
+      this.#schemaChache.delete(schemaId);
+    }
+    this.#topicNameCache.delete(topicName);
+  }
+};
+
 // src/utils/eventParseError.js
 var EventParseError = class extends Error {
   /**
@@ -535,8 +600,8 @@ var PubSubApiClient = class {
    */
   #client;
   /**
-   * Map of schemas indexed by topic name
-   * @type {Map<string,Schema>}
+   * Schema cache
+   * @type {SchemaCache}
    */
   #schemaChache;
   /**
@@ -551,7 +616,7 @@ var PubSubApiClient = class {
    */
   constructor(logger = console) {
     this.#logger = logger;
-    this.#schemaChache = /* @__PURE__ */ new Map();
+    this.#schemaChache = new SchemaCache();
     this.#subscriptions = /* @__PURE__ */ new Map();
     try {
       Configuration.load();
@@ -759,13 +824,26 @@ var PubSubApiClient = class {
           );
           data.events.forEach(async (event) => {
             try {
-              let schema = await this.#getEventSchema(topicName);
-              if (schema.id !== event.event.schemaId) {
-                this.#logger.info(
-                  `Event schema changed (${schema.id} != ${event.event.schemaId}), reloading: ${topicName}`
+              let schema;
+              if (topicName.endsWith("__chn")) {
+                schema = await this.#getEventSchemaFromId(
+                  event.event.schemaId
                 );
-                this.#schemaChache.delete(topicName);
-                schema = await this.#getEventSchema(topicName);
+              } else {
+                schema = await this.#getEventSchemaFromTopicName(
+                  topicName
+                );
+                if (schema.id !== event.event.schemaId) {
+                  this.#logger.info(
+                    `Event schema changed (${schema.id} != ${event.event.schemaId}), reloading: ${topicName}`
+                  );
+                  this.#schemaChache.deleteWithTopicName(
+                    topicName
+                  );
+                  schema = await this.#getEventSchemaFromTopicName(
+                    topicName
+                  );
+                }
               }
               const parsedEvent = parseEvent(schema, event);
               this.#logger.debug(parsedEvent);
@@ -866,7 +944,7 @@ var PubSubApiClient = class {
       if (!this.#client) {
         throw new Error("Pub/Sub API client is not connected.");
       }
-      const schema = await this.#getEventSchema(topicName);
+      const schema = await this.#getEventSchemaFromTopicName(topicName);
       const id = correlationKey ? correlationKey : import_crypto2.default.randomUUID();
       const response = await new Promise((resolve, reject) => {
         this.#client.Publish(
@@ -904,21 +982,23 @@ var PubSubApiClient = class {
    * @memberof PubSubApiClient.prototype
    */
   close() {
-    this.#logger.info("closing gRPC stream");
+    this.#logger.info("Closing gRPC stream");
     this.#client.close();
   }
   /**
-   * Retrieves the event schema for a topic from the cache.
+   * Retrieves an event schema from the cache based on a topic name.
    * If it's not cached, fetches the shema with the gRPC client.
    * @param {string} topicName name of the topic that we're fetching
    * @returns {Promise<Schema>} Promise holding parsed event schema
    */
-  async #getEventSchema(topicName) {
-    let schema = this.#schemaChache.get(topicName);
+  async #getEventSchemaFromTopicName(topicName) {
+    let schema = this.#schemaChache.getFromTopicName(topicName);
     if (!schema) {
       try {
-        schema = await this.#fetchEventSchemaWithClient(topicName);
-        this.#schemaChache.set(topicName, schema);
+        schema = await this.#fetchEventSchemaFromTopicNameWithClient(
+          topicName
+        );
+        this.#schemaChache.setWithTopicName(topicName, schema);
       } catch (error) {
         throw new Error(
           `Failed to load schema for topic ${topicName}`,
@@ -929,32 +1009,66 @@ var PubSubApiClient = class {
     return schema;
   }
   /**
+   * Retrieves an event schema from the cache based on its ID.
+   * If it's not cached, fetches the shema with the gRPC client.
+   * @param {string} schemaId ID of the schema that we're fetching
+   * @returns {Promise<Schema>} Promise holding parsed event schema
+   */
+  async #getEventSchemaFromId(schemaId) {
+    let schema = this.#schemaChache.getFromId(schemaId);
+    if (!schema) {
+      try {
+        schema = await this.#fetchEventSchemaFromIdWithClient(schemaId);
+        this.#schemaChache.set(schema);
+      } catch (error) {
+        throw new Error(`Failed to load schema with ID ${schemaId}`, {
+          cause: error
+        });
+      }
+    }
+    return schema;
+  }
+  /**
    * Requests the event schema for a topic using the gRPC client
    * @param {string} topicName name of the topic that we're fetching
    * @returns {Promise<Schema>} Promise holding parsed event schema
    */
-  async #fetchEventSchemaWithClient(topicName) {
+  async #fetchEventSchemaFromTopicNameWithClient(topicName) {
     return new Promise((resolve, reject) => {
-      this.#client.GetTopic({ topicName }, (topicError, response) => {
-        if (topicError) {
-          reject(topicError);
+      this.#client.GetTopic(
+        { topicName },
+        async (topicError, response) => {
+          if (topicError) {
+            reject(topicError);
+          } else {
+            const { schemaId } = response;
+            const schemaInfo = await this.#fetchEventSchemaFromIdWithClient(
+              schemaId
+            );
+            this.#logger.info(`Topic schema loaded: ${topicName}`);
+            resolve(schemaInfo);
+          }
+        }
+      );
+    });
+  }
+  /**
+   * Requests the event schema from an ID using the gRPC client
+   * @param {string} schemaId schema ID that we're fetching
+   * @returns {Promise<Schema>} Promise holding parsed event schema
+   */
+  async #fetchEventSchemaFromIdWithClient(schemaId) {
+    return new Promise((resolve, reject) => {
+      this.#client.GetSchema({ schemaId }, (schemaError, res) => {
+        if (schemaError) {
+          reject(schemaError);
         } else {
-          const { schemaId } = response;
-          this.#client.GetSchema({ schemaId }, (schemaError, res) => {
-            if (schemaError) {
-              reject(schemaError);
-            } else {
-              const schemaType = import_avro_js3.default.parse(res.schemaJson, {
-                registry: { long: CustomLongAvroType }
-              });
-              this.#logger.info(
-                `Topic schema loaded: ${topicName}`
-              );
-              resolve({
-                id: schemaId,
-                type: schemaType
-              });
-            }
+          const schemaType = import_avro_js3.default.parse(res.schemaJson, {
+            registry: { long: CustomLongAvroType }
+          });
+          resolve({
+            id: schemaId,
+            type: schemaType
           });
         }
       });

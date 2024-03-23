@@ -15,23 +15,23 @@ export default class SalesforceAuth {
      * Authenticates with the username/password flow
      * @returns {ConnectionMetadata}
      */
-    static "__#3@#authWithUsernamePassword"(): ConnectionMetadata;
+    static "__#4@#authWithUsernamePassword"(): ConnectionMetadata;
     /**
      * Authenticates with the OAuth 2.0 client credentials flow
      * @returns {ConnectionMetadata}
      */
-    static "__#3@#authWithOAuthClientCredentials"(): ConnectionMetadata;
+    static "__#4@#authWithOAuthClientCredentials"(): ConnectionMetadata;
     /**
      * Authenticates with the OAuth 2.0 JWT bearer flow
      * @returns {ConnectionMetadata}
      */
-    static "__#3@#authWithJwtBearer"(): ConnectionMetadata;
+    static "__#4@#authWithJwtBearer"(): ConnectionMetadata;
     /**
      * Generic OAuth 2.0 connect method
      * @param {string} body URL encoded body
      * @returns {ConnectionMetadata} connection metadata
      */
-    static "__#3@#authWithOAuth"(body: string): ConnectionMetadata;
+    static "__#4@#authWithOAuth"(body: string): ConnectionMetadata;
 }
 export type ConnectionMetadata = {
     accessToken: string;
