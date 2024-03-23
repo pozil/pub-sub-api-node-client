@@ -7,6 +7,7 @@ import certifi from 'certifi';
 import grpc from '@grpc/grpc-js';
 import protoLoader from '@grpc/proto-loader';
 
+import SchemaCache from './utils/schemaCache.js';
 import EventParseError from './utils/eventParseError.js';
 import PubSubEventEmitter from './utils/pubSubEventEmitter.js';
 import { CustomLongAvroType } from './utils/avroHelper.js';
@@ -23,13 +24,6 @@ import SalesforceAuth from './utils/auth.js';
  * @property {number} replayId
  * @property {string} correlationKey
  * @global
- */
-
-/**
- * @typedef {Object} Schema
- * @property {string} id
- * @property {Object} type
- * @protected
  */
 
 /**
@@ -60,8 +54,8 @@ export default class PubSubApiClient {
     #client;
 
     /**
-     * Map of schemas indexed by topic name
-     * @type {Map<string,Schema>}
+     * Schema cache
+     * @type {SchemaCache}
      */
     #schemaChache;
 
@@ -79,7 +73,7 @@ export default class PubSubApiClient {
      */
     constructor(logger = console) {
         this.#logger = logger;
-        this.#schemaChache = new Map();
+        this.#schemaChache = new SchemaCache();
         this.#subscriptions = new Map();
         // Check and load config
         try {
@@ -319,16 +313,33 @@ export default class PubSubApiClient {
                     );
                     data.events.forEach(async (event) => {
                         try {
-                            // Load event schema from cache or from the client
-                            let schema = await this.#getEventSchema(topicName);
-                            // Make sure that schema ID matches. If not, event fields may have changed
-                            // and client needs to reload schema
-                            if (schema.id !== event.event.schemaId) {
-                                this.#logger.info(
-                                    `Event schema changed (${schema.id} != ${event.event.schemaId}), reloading: ${topicName}`
+                            let schema;
+                            // Are we subscribing to a custom channel?
+                            if (topicName.endsWith('__chn')) {
+                                // Use schema ID instead of topic name to retrieve schema
+                                schema = await this.#getEventSchemaFromId(
+                                    event.event.schemaId
                                 );
-                                this.#schemaChache.delete(topicName);
-                                schema = await this.#getEventSchema(topicName);
+                            } else {
+                                // Load event schema from cache or from the client
+                                schema =
+                                    await this.#getEventSchemaFromTopicName(
+                                        topicName
+                                    );
+                                // Make sure that schema ID matches. If not, event fields may have changed
+                                // and client needs to reload schema
+                                if (schema.id !== event.event.schemaId) {
+                                    this.#logger.info(
+                                        `Event schema changed (${schema.id} != ${event.event.schemaId}), reloading: ${topicName}`
+                                    );
+                                    this.#schemaChache.deleteWithTopicName(
+                                        topicName
+                                    );
+                                    schema =
+                                        await this.#getEventSchemaFromTopicName(
+                                            topicName
+                                        );
+                                }
                             }
                             // Parse event thanks to schema
                             const parsedEvent = parseEvent(schema, event);
@@ -448,7 +459,7 @@ export default class PubSubApiClient {
             if (!this.#client) {
                 throw new Error('Pub/Sub API client is not connected.');
             }
-            const schema = await this.#getEventSchema(topicName);
+            const schema = await this.#getEventSchemaFromTopicName(topicName);
 
             const id = correlationKey ? correlationKey : crypto.randomUUID();
             const response = await new Promise((resolve, reject) => {
@@ -487,22 +498,25 @@ export default class PubSubApiClient {
      * @memberof PubSubApiClient.prototype
      */
     close() {
-        this.#logger.info('closing gRPC stream');
+        this.#logger.info('Closing gRPC stream');
         this.#client.close();
     }
 
     /**
-     * Retrieves the event schema for a topic from the cache.
+     * Retrieves an event schema from the cache based on a topic name.
      * If it's not cached, fetches the shema with the gRPC client.
      * @param {string} topicName name of the topic that we're fetching
      * @returns {Promise<Schema>} Promise holding parsed event schema
      */
-    async #getEventSchema(topicName) {
-        let schema = this.#schemaChache.get(topicName);
+    async #getEventSchemaFromTopicName(topicName) {
+        let schema = this.#schemaChache.getFromTopicName(topicName);
         if (!schema) {
             try {
-                schema = await this.#fetchEventSchemaWithClient(topicName);
-                this.#schemaChache.set(topicName, schema);
+                schema =
+                    await this.#fetchEventSchemaFromTopicNameWithClient(
+                        topicName
+                    );
+                this.#schemaChache.setWithTopicName(topicName, schema);
             } catch (error) {
                 throw new Error(
                     `Failed to load schema for topic ${topicName}`,
@@ -514,33 +528,70 @@ export default class PubSubApiClient {
     }
 
     /**
+     * Retrieves an event schema from the cache based on its ID.
+     * If it's not cached, fetches the shema with the gRPC client.
+     * @param {string} schemaId ID of the schema that we're fetching
+     * @returns {Promise<Schema>} Promise holding parsed event schema
+     */
+    async #getEventSchemaFromId(schemaId) {
+        let schema = this.#schemaChache.getFromId(schemaId);
+        if (!schema) {
+            try {
+                schema = await this.#fetchEventSchemaFromIdWithClient(schemaId);
+                this.#schemaChache.set(schema);
+            } catch (error) {
+                throw new Error(`Failed to load schema with ID ${schemaId}`, {
+                    cause: error
+                });
+            }
+        }
+        return schema;
+    }
+
+    /**
      * Requests the event schema for a topic using the gRPC client
      * @param {string} topicName name of the topic that we're fetching
      * @returns {Promise<Schema>} Promise holding parsed event schema
      */
-    async #fetchEventSchemaWithClient(topicName) {
+    async #fetchEventSchemaFromTopicNameWithClient(topicName) {
         return new Promise((resolve, reject) => {
-            this.#client.GetTopic({ topicName }, (topicError, response) => {
-                if (topicError) {
-                    reject(topicError);
-                } else {
-                    // Get the schema information
-                    const { schemaId } = response;
-                    this.#client.GetSchema({ schemaId }, (schemaError, res) => {
-                        if (schemaError) {
-                            reject(schemaError);
-                        } else {
-                            const schemaType = avro.parse(res.schemaJson, {
-                                registry: { long: CustomLongAvroType }
-                            });
-                            this.#logger.info(
-                                `Topic schema loaded: ${topicName}`
+            this.#client.GetTopic(
+                { topicName },
+                async (topicError, response) => {
+                    if (topicError) {
+                        reject(topicError);
+                    } else {
+                        // Get the schema information
+                        const { schemaId } = response;
+                        const schemaInfo =
+                            await this.#fetchEventSchemaFromIdWithClient(
+                                schemaId
                             );
-                            resolve({
-                                id: schemaId,
-                                type: schemaType
-                            });
-                        }
+                        this.#logger.info(`Topic schema loaded: ${topicName}`);
+                        resolve(schemaInfo);
+                    }
+                }
+            );
+        });
+    }
+
+    /**
+     * Requests the event schema from an ID using the gRPC client
+     * @param {string} schemaId schema ID that we're fetching
+     * @returns {Promise<Schema>} Promise holding parsed event schema
+     */
+    async #fetchEventSchemaFromIdWithClient(schemaId) {
+        return new Promise((resolve, reject) => {
+            this.#client.GetSchema({ schemaId }, (schemaError, res) => {
+                if (schemaError) {
+                    reject(schemaError);
+                } else {
+                    const schemaType = avro.parse(res.schemaJson, {
+                        registry: { long: CustomLongAvroType }
+                    });
+                    resolve({
+                        id: schemaId,
+                        type: schemaType
                     });
                 }
             });
