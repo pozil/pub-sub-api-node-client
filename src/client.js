@@ -6,6 +6,8 @@ import avro from 'avro-js';
 import certifi from 'certifi';
 import grpc from '@grpc/grpc-js';
 import protoLoader from '@grpc/proto-loader';
+// eslint-disable-next-line no-unused-vars
+import { EventEmitter } from 'events';
 
 import SchemaCache from './utils/schemaCache.js';
 import EventParseError from './utils/eventParseError.js';
@@ -207,7 +209,7 @@ export default class PubSubApiClient {
     /**
      * Subscribes to a topic and retrieves all past events in retention window.
      * @param {string} topicName name of the topic that we're subscribing to
-     * @param {number} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
+     * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
      * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
      */
@@ -222,12 +224,12 @@ export default class PubSubApiClient {
     /**
      * Subscribes to a topic and retrieves past events starting from a replay ID.
      * @param {string} topicName name of the topic that we're subscribing to
-     * @param {number} numRequested number of events requested. If null, the client keeps the subscription alive forever.
+     * @param {number | null} [numRequested] number of events requested. If null, the client keeps the subscription alive forever.
      * @param {number} replayId replay ID
      * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
      */
-    async subscribeFromReplayId(topicName, numRequested, replayId) {
+    async subscribeFromReplayId(topicName, replayId, numRequested = null) {
         return this.#subscribe({
             topicName,
             numRequested,
@@ -239,7 +241,7 @@ export default class PubSubApiClient {
     /**
      * Subscribes to a topic.
      * @param {string} topicName name of the topic that we're subscribing to
-     * @param {number} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
+     * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
      * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
      */
@@ -260,7 +262,7 @@ export default class PubSubApiClient {
         try {
             // Check number of requested events
             let isInfiniteEventRequest = false;
-            if (numRequested === null) {
+            if (numRequested === null || numRequested === undefined) {
                 isInfiniteEventRequest = true;
                 subscribeRequest.numRequested = numRequested =
                     MAX_EVENT_BATCH_SIZE;

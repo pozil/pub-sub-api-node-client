@@ -698,7 +698,7 @@ var PubSubApiClient = class {
     try {
       const rootCert = import_fs2.default.readFileSync(import_certifi.default);
       const protoFilePath = (0, import_url.fileURLToPath)(
-        new URL("./pubsub_api-961def31.proto?hash=961def31", "file://" + __filename)
+        new URL("./pubsub_api-be352429.proto?hash=be352429", "file://" + __filename)
       );
       const packageDef = import_proto_loader.default.loadSync(protoFilePath, {});
       const grpcObj = import_grpc_js.default.loadPackageDefinition(packageDef);
@@ -731,7 +731,7 @@ var PubSubApiClient = class {
   /**
    * Subscribes to a topic and retrieves all past events in retention window.
    * @param {string} topicName name of the topic that we're subscribing to
-   * @param {number} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
+   * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
    * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
    * @memberof PubSubApiClient.prototype
    */
@@ -745,12 +745,12 @@ var PubSubApiClient = class {
   /**
    * Subscribes to a topic and retrieves past events starting from a replay ID.
    * @param {string} topicName name of the topic that we're subscribing to
-   * @param {number} numRequested number of events requested. If null, the client keeps the subscription alive forever.
+   * @param {number | null} [numRequested] number of events requested. If null, the client keeps the subscription alive forever.
    * @param {number} replayId replay ID
    * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
    * @memberof PubSubApiClient.prototype
    */
-  async subscribeFromReplayId(topicName, numRequested, replayId) {
+  async subscribeFromReplayId(topicName, replayId, numRequested = null) {
     return this.#subscribe({
       topicName,
       numRequested,
@@ -761,7 +761,7 @@ var PubSubApiClient = class {
   /**
    * Subscribes to a topic.
    * @param {string} topicName name of the topic that we're subscribing to
-   * @param {number} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
+   * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
    * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
    * @memberof PubSubApiClient.prototype
    */
@@ -780,7 +780,7 @@ var PubSubApiClient = class {
     let { topicName, numRequested } = subscribeRequest;
     try {
       let isInfiniteEventRequest = false;
-      if (numRequested === null) {
+      if (numRequested === null || numRequested === void 0) {
         isInfiniteEventRequest = true;
         subscribeRequest.numRequested = numRequested = MAX_EVENT_BATCH_SIZE;
       } else {

@@ -4,7 +4,7 @@
  * @alias PubSubEventEmitter
  * @global
  */
-export default class PubSubEventEmitter extends EventEmitter {
+export default class PubSubEventEmitter extends EventEmitter<[never]> {
     /**
      * Create a new EventEmitter for Pub/Sub API events
      * @param {string} topicName
