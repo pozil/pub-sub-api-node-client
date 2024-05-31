@@ -229,7 +229,7 @@ export default class PubSubApiClient {
      * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
      */
-    async subscribeFromReplayId(topicName, replayId, numRequested = null) {
+    async subscribeFromReplayId(topicName, numRequested, replayId) {
         return this.#subscribe({
             topicName,
             numRequested,
