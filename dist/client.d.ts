@@ -35,12 +35,12 @@ export default class PubSubApiClient {
     /**
      * Subscribes to a topic and retrieves past events starting from a replay ID.
      * @param {string} topicName name of the topic that we're subscribing to
-     * @param {number | null} [numRequested] number of events requested. If null, the client keeps the subscription alive forever.
+     * @param {number | null} numRequested number of events requested. If null, the client keeps the subscription alive forever.
      * @param {number} replayId replay ID
      * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
      */
-    subscribeFromReplayId(topicName: string, numRequested?: number | null, replayId: number): Promise<EventEmitter>;
+    subscribeFromReplayId(topicName: string, numRequested: number | null, replayId: number): Promise<EventEmitter>;
     /**
      * Subscribes to a topic.
      * @param {string} topicName name of the topic that we're subscribing to
