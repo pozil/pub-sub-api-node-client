@@ -17,6 +17,7 @@ See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-ap
     -   [Work with flow control for high volumes of events](#work-with-flow-control-for-high-volumes-of-events)
     -   [Handle gRPC stream lifecycle events](#handle-grpc-stream-lifecycle-events)
     -   [Use a custom logger](#use-a-custom-logger)
+-   [Common Issues](#common-issues)
 -   [Reference](#reference)
     -   [PubSubApiClient](#pubsubapiclient)
     -   [PubSubEventEmitter](#pubsubeventemitter)
@@ -124,7 +125,18 @@ Here's an example that will get you started quickly. It listens to a single acco
                         `(${eventEmitter.getReceivedEventCount()}/${eventEmitter.getRequestedEventCount()} ` +
                         `events received so far)`
                 );
-                console.log(JSON.stringify(event, null, 2));
+                // Safely log event as a JSON string
+                console.log(
+                    JSON.stringify(
+                        event,
+                        (key, value) =>
+                            /* Convert BigInt values into strings and keep other types unchanged */
+                            typeof value === 'bigint'
+                                ? value.toString()
+                                : value,
+                        2
+                    )
+                );
             });
         } catch (error) {
             console.error(error);
@@ -343,6 +355,31 @@ import pino from 'pino';
 
 const logger = pino();
 const client = new PubSubApiClient(logger);
+```
+
+## Common Issues
+
+### TypeError: Do not know how to serialize a BigInt
+
+If you attempt to call `JSON.stringify` on an event you will likely see the following error:
+
+> TypeError: Do not know how to serialize a BigInt
+
+This happens when an integer value stored in an event field exceeds the range of the `Number` JS type (this typically happens with `commitNumber` values). In this case, we use a `BigInt` type to safely store the integer value. However, the `BigInt` type is not yet supported in standard JSON representation (see step 10 in the [BigInt TC39 spec](https://tc39.es/proposal-bigint/#sec-serializejsonproperty)) so this triggers a `TypeError`.
+
+To avoid this error, use a replacer function to safely escape BigInt values so that they can be serialized as a string (or any other format of your choice) in JSON:
+
+```js
+// Safely log event as a JSON string
+console.log(
+    JSON.stringify(
+        event,
+        (key, value) =>
+            /* Convert BigInt values into strings and keep other types unchanged */
+            typeof value === 'bigint' ? value.toString() : value,
+        2
+    )
+);
 ```
 
 ## Reference
