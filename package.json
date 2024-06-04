@@ -1,6 +1,6 @@
 {
     "name": "salesforce-pubsub-api-client",
-    "version": "4.0.0",
+    "version": "4.0.1",
     "type": "module",
     "description": "A node client for the Salesforce Pub/Sub API",
     "author": "pozil",
