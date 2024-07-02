@@ -8,6 +8,8 @@ import grpc from '@grpc/grpc-js';
 import protoLoader from '@grpc/proto-loader';
 // eslint-disable-next-line no-unused-vars
 import { EventEmitter } from 'events';
+// eslint-disable-next-line no-unused-vars
+import { connectivityState } from '@grpc/grpc-js';
 
 import SchemaCache from './utils/schemaCache.js';
 import EventParseError from './utils/eventParseError.js';
@@ -204,6 +206,15 @@ export default class PubSubApiClient {
                 cause: error
             });
         }
+    }
+
+    /**
+     * Get connectivity state from current channel.
+     * @returns {Promise<connectivityState>} Promise that holds channel's connectivity information {@link connectivityState}
+     * @memberof PubSubApiClient.prototype
+     */
+    async getConnectivityState() {
+        return this.#client?.getChannel()?.getConnectivityState(false);
     }
 
     /**
