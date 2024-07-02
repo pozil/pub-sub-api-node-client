@@ -39,6 +39,7 @@ var import_avro_js3 = __toESM(require("avro-js"), 1);
 var import_certifi = __toESM(require("certifi"), 1);
 var import_grpc_js = __toESM(require("@grpc/grpc-js"), 1);
 var import_proto_loader = __toESM(require("@grpc/proto-loader"), 1);
+var import_grpc_js2 = require("@grpc/grpc-js");
 
 // src/utils/schemaCache.js
 var SchemaCache = class {
@@ -727,6 +728,14 @@ var PubSubApiClient = class {
         cause: error
       });
     }
+  }
+  /**
+   * Get connectivity state from current channel.
+   * @returns {Promise<connectivityState>} Promise that holds channel's connectivity information {@link connectivityState}
+   * @memberof PubSubApiClient.prototype
+   */
+  async getConnectivityState() {
+    return this.#client?.getChannel()?.getConnectivityState(false);
   }
   /**
    * Subscribes to a topic and retrieves all past events in retention window.

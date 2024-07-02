@@ -25,6 +25,12 @@ export default class PubSubApiClient {
      */
     connectWithAuth(accessToken: string, instanceUrl: string, organizationId?: string): Promise<void>;
     /**
+     * Get connectivity state from current channel.
+     * @returns {Promise<connectivityState>} Promise that holds channel's connectivity information {@link connectivityState}
+     * @memberof PubSubApiClient.prototype
+     */
+    getConnectivityState(): Promise<connectivityState>;
+    /**
      * Subscribes to a topic and retrieves all past events in retention window.
      * @param {string} topicName name of the topic that we're subscribing to
      * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
@@ -81,6 +87,7 @@ export type Logger = {
     error: Function;
     warn: Function;
 };
+import { connectivityState } from '@grpc/grpc-js';
 import { EventEmitter } from 'events';
 import PubSubEventEmitter from './utils/pubSubEventEmitter.js';
 //# sourceMappingURL=client.d.ts.map

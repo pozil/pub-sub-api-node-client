@@ -418,6 +418,12 @@ Returns: Promise that resolves once the connection is established.
 | `instanceUrl`    | string | Salesforce instance URL                                                                             |
 | `organizationId` | string | optional organization ID. If you don't provide one, we'll attempt to parse it from the accessToken. |
 
+#### `async getConnectivityState() → Promise<connectivityState>}`
+
+Get connectivity state from current channel.
+
+Returns: Promise that holds channel's [connectivity state](https://grpc.github.io/grpc/node/grpc.html#.connectivityState).
+
 #### `async publish(topicName, payload, correlationKeyopt) → {Promise.<PublishResult>}`
 
 Publishes a payload to a topic using the gRPC client.
