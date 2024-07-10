@@ -22,6 +22,7 @@ import {
     decodeReplayId
 } from './utils/eventParser.js';
 import SalesforceAuth from './utils/auth.js';
+import PubSubContext from './utils/pubSubContext.js';
 
 /**
  * @typedef {Object} PublishResult
@@ -263,6 +264,179 @@ export default class PubSubApiClient {
         });
     }
 
+    async subscribeFromStream(subscribeRequest) {
+        let { topicName, numRequested } = subscribeRequest;
+
+        // Check client connection
+        if (!this.#client) {
+            throw new Error('Pub/Sub API client is not connected.');
+        }
+
+        // Check for an existing subscription
+        let subscription = this.#subscriptions.get(topicName);
+
+        // Send subscription request
+        if (!subscription) {
+            subscription = this.#client.Subscribe();
+            this.#subscriptions.set(topicName, subscription);
+        }
+
+        subscription.write(subscribeRequest);
+        this.#logger.info(
+            `Subscribe request sent for ${numRequested} events from ${topicName}...`
+        );
+
+        return subscription;
+    }
+
+    async initializeSubscription(
+        topicName,
+        numRequested,
+        isInfiniteEventRequest,
+        onEnd = null,
+        onError = null,
+        onKeepAlive = null,
+        onLastEvent = null,
+        onParsedEvent = null,
+        onStatus = null
+    ) {
+        const pubSubContext = new PubSubContext(topicName, numRequested);
+        const subscription = await this.subscribeFromStream({
+            topicName,
+            numRequested
+        });
+
+        subscription.on('end', async () => {
+            this.#subscriptions.delete(topicName);
+            this.#logger.info('gRPC stream ended');
+
+            if (onEnd) await onEnd();
+        });
+        subscription.on('error', async (error) => {
+            this.#logger.error(`gRPC stream error: ${JSON.stringify(error)}`);
+            if (onError) await onError(error);
+        });
+        subscription.on('status', async (status) => {
+            this.#logger.info(`gRPC stream status: ${JSON.stringify(status)}`);
+            if (onStatus) await onStatus(status);
+        });
+        subscription.on('data', async (data) => {
+            const latestReplayId = decodeReplayId(data.latestReplayId);
+
+            if (data.events) {
+                this.#logger.info(
+                    `Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
+                );
+                for await (const event of data.events) {
+                    try {
+                        let schema;
+                        // Are we subscribing to a custom channel?
+                        if (topicName.endsWith('__chn')) {
+                            // Use schema ID instead of topic name to retrieve schema
+                            schema = await this.#getEventSchemaFromId(
+                                event.event.schemaId
+                            );
+                        } else {
+                            // Load event schema from cache or from the client
+                            schema =
+                                await this.#getEventSchemaFromTopicName(
+                                    topicName
+                                );
+                            // Make sure that schema ID matches. If not, event fields may have changed
+                            // and client needs to reload schema
+                            if (schema.id !== event.event.schemaId) {
+                                this.#logger.info(
+                                    `Event schema changed (${schema.id} != ${event.event.schemaId}), reloading: ${topicName}`
+                                );
+                                this.#schemaChache.deleteWithTopicName(
+                                    topicName
+                                );
+                                schema =
+                                    await this.#getEventSchemaFromTopicName(
+                                        topicName
+                                    );
+                            }
+                        }
+                        // Parse event thanks to schema
+                        const parsedEvent = parseEvent(schema, event);
+                        this.#logger.debug(parsedEvent);
+
+                        pubSubContext.registerReceivedEvent(event);
+                        if (onParsedEvent) await onParsedEvent(event);
+                    } catch (error) {
+                        // Report event parsing error with replay ID if possible
+                        let replayId;
+                        try {
+                            replayId = decodeReplayId(event.replayId);
+                            // eslint-disable-next-line no-empty, no-unused-vars
+                        } catch (error) {}
+                        const message = replayId
+                            ? `Failed to parse event with replay ID ${replayId}`
+                            : `Failed to parse event with unknown replay ID (latest replay ID was ${latestReplayId})`;
+                        const parseError = new EventParseError(
+                            message,
+                            error,
+                            replayId,
+                            event,
+                            latestReplayId
+                        );
+                        if (onError) await onError;
+                        this.#logger.error(parseError);
+                    }
+
+                    // Handle last requested event
+                    if (
+                        pubSubContext.getReceivedEventCount() ===
+                        pubSubContext.getRequestedEventCount()
+                    ) {
+                        if (isInfiniteEventRequest) {
+                            // Request additional events
+                            await this.requestAdditionalEvents(
+                                pubSubContext,
+                                MAX_EVENT_BATCH_SIZE
+                            );
+                        } else {
+                            // Emit a 'lastevent' event when reaching the last requested event count
+                            if (onLastEvent) await onLastEvent();
+                        }
+                    }
+                }
+            } else {
+                // If there are no events then, every 270 seconds (or less) the server publishes a keepalive message with
+                // the latestReplayId and pendingNumRequested (the number of events that the client is still waiting for)
+                this.#logger.debug(
+                    `Received keepalive message. Latest replay ID: ${latestReplayId}`
+                );
+                data.latestReplayId = latestReplayId; // Replace original value with decoded value
+                if (onKeepAlive) await onKeepAlive(data);
+            }
+        });
+
+        return subscription;
+    }
+
+    async #subscribeWithEventEmitter(
+        topicName,
+        numRequested,
+        isInfiniteEventRequest
+    ) {
+        const eventEmitter = new PubSubEventEmitter();
+
+        await this.initializeSubscription(
+            topicName,
+            numRequested,
+            isInfiniteEventRequest,
+            () => eventEmitter.emit('end'),
+            (error) => eventEmitter.emit(error),
+            (event) => eventEmitter.emit('keepalive', event),
+            () => eventEmitter.emit('lastevent'),
+            (event) => eventEmitter.emit('data', event),
+            (status) => eventEmitter.emit('status', status)
+        );
+
+        return eventEmitter;
+    }
+
     /**
      * Subscribes to a topic using the gRPC client and an event schema
      * @param {object} subscribeRequest subscription request
@@ -294,136 +468,12 @@ export default class PubSubApiClient {
                     );
                 }
             }
-            // Check client connection
-            if (!this.#client) {
-                throw new Error('Pub/Sub API client is not connected.');
-            }
 
-            // Check for an existing subscription
-            let subscription = this.#subscriptions.get(topicName);
-
-            // Send subscription request
-            if (!subscription) {
-                subscription = this.#client.Subscribe();
-                this.#subscriptions.set(topicName, subscription);
-            }
-
-            subscription.write(subscribeRequest);
-            this.#logger.info(
-                `Subscribe request sent for ${numRequested} events from ${topicName}...`
-            );
-
-            // Listen to new events
-            const eventEmitter = new PubSubEventEmitter(
+            return this.#subscribeWithEventEmitter(
                 topicName,
-                numRequested
+                numRequested,
+                isInfiniteEventRequest
             );
-            subscription.on('data', (data) => {
-                const latestReplayId = decodeReplayId(data.latestReplayId);
-                if (data.events) {
-                    this.#logger.info(
-                        `Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
-                    );
-                    data.events.forEach(async (event) => {
-                        try {
-                            let schema;
-                            // Are we subscribing to a custom channel?
-                            if (topicName.endsWith('__chn')) {
-                                // Use schema ID instead of topic name to retrieve schema
-                                schema = await this.#getEventSchemaFromId(
-                                    event.event.schemaId
-                                );
-                            } else {
-                                // Load event schema from cache or from the client
-                                schema =
-                                    await this.#getEventSchemaFromTopicName(
-                                        topicName
-                                    );
-                                // Make sure that schema ID matches. If not, event fields may have changed
-                                // and client needs to reload schema
-                                if (schema.id !== event.event.schemaId) {
-                                    this.#logger.info(
-                                        `Event schema changed (${schema.id} != ${event.event.schemaId}), reloading: ${topicName}`
-                                    );
-                                    this.#schemaChache.deleteWithTopicName(
-                                        topicName
-                                    );
-                                    schema =
-                                        await this.#getEventSchemaFromTopicName(
-                                            topicName
-                                        );
-                                }
-                            }
-                            // Parse event thanks to schema
-                            const parsedEvent = parseEvent(schema, event);
-                            this.#logger.debug(parsedEvent);
-                            eventEmitter.emit('data', parsedEvent);
-                        } catch (error) {
-                            // Report event parsing error with replay ID if possible
-                            let replayId;
-                            try {
-                                replayId = decodeReplayId(event.replayId);
-                                // eslint-disable-next-line no-empty, no-unused-vars
-                            } catch (error) {}
-                            const message = replayId
-                                ? `Failed to parse event with replay ID ${replayId}`
-                                : `Failed to parse event with unknown replay ID (latest replay ID was ${latestReplayId})`;
-                            const parseError = new EventParseError(
-                                message,
-                                error,
-                                replayId,
-                                event,
-                                latestReplayId
-                            );
-                            eventEmitter.emit('error', parseError);
-                            this.#logger.error(parseError);
-                        }
-
-                        // Handle last requested event
-                        if (
-                            eventEmitter.getReceivedEventCount() ===
-                            eventEmitter.getRequestedEventCount()
-                        ) {
-                            if (isInfiniteEventRequest) {
-                                // Request additional events
-                                this.requestAdditionalEvents(
-                                    eventEmitter,
-                                    MAX_EVENT_BATCH_SIZE
-                                );
-                            } else {
-                                // Emit a 'lastevent' event when reaching the last requested event count
-                                eventEmitter.emit('lastevent');
-                            }
-                        }
-                    });
-                } else {
-                    // If there are no events then, every 270 seconds (or less) the server publishes a keepalive message with
-                    // the latestReplayId and pendingNumRequested (the number of events that the client is still waiting for)
-                    this.#logger.debug(
-                        `Received keepalive message. Latest replay ID: ${latestReplayId}`
-                    );
-                    data.latestReplayId = latestReplayId; // Replace original value with decoded value
-                    eventEmitter.emit('keepalive', data);
-                }
-            });
-            subscription.on('end', () => {
-                this.#subscriptions.delete(topicName);
-                this.#logger.info('gRPC stream ended');
-                eventEmitter.emit('end');
-            });
-            subscription.on('error', (error) => {
-                this.#logger.error(
-                    `gRPC stream error: ${JSON.stringify(error)}`
-                );
-                eventEmitter.emit('error', error);
-            });
-            subscription.on('status', (status) => {
-                this.#logger.info(
-                    `gRPC stream status: ${JSON.stringify(status)}`
-                );
-                eventEmitter.emit('status', status);
-            });
-            return eventEmitter;
         } catch (error) {
             throw new Error(
                 `Failed to subscribe to events for topic ${topicName}`,
@@ -434,11 +484,11 @@ export default class PubSubApiClient {
 
     /**
      * Request additional events on an existing subscription.
-     * @param {PubSubEventEmitter} eventEmitter event emitter that was obtained in the first subscribe call
+     * @param {PubSubContext} pubSubContext event emitter that was obtained in the first subscribe call
      * @param {number} numRequested number of events requested.
      */
-    async requestAdditionalEvents(eventEmitter, numRequested) {
-        const topicName = eventEmitter.getTopicName();
+    async requestAdditionalEvents(pubSubContext, numRequested) {
+        const topicName = pubSubContext.getTopicName();
 
         // Retrieve existing subscription
         const subscription = this.#subscriptions.get(topicName);
@@ -449,7 +499,7 @@ export default class PubSubApiClient {
         }
 
         // Request additional events
-        eventEmitter._resetEventCount(numRequested);
+        pubSubContext._resetEventCount(numRequested);
         subscription.write({
             topicName,
             numRequested: numRequested
