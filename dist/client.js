@@ -6,6 +6,7 @@ import avro3 from "avro-js";
 import certifi from "certifi";
 import grpc from "@grpc/grpc-js";
 import protoLoader from "@grpc/proto-loader";
+import { connectivityState } from "@grpc/grpc-js";
 
 // src/utils/schemaCache.js
 var SchemaCache = class {
@@ -694,6 +695,14 @@ var PubSubApiClient = class {
         cause: error
       });
     }
+  }
+  /**
+   * Get connectivity state from current channel.
+   * @returns {Promise<connectivityState>} Promise that holds channel's connectivity information {@link connectivityState}
+   * @memberof PubSubApiClient.prototype
+   */
+  async getConnectivityState() {
+    return this.#client?.getChannel()?.getConnectivityState(false);
   }
   /**
    * Subscribes to a topic and retrieves all past events in retention window.
