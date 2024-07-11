@@ -10,6 +10,8 @@ import protoLoader from '@grpc/proto-loader';
 import { EventEmitter } from 'events';
 // eslint-disable-next-line no-unused-vars
 import { connectivityState } from '@grpc/grpc-js';
+// eslint-disable-next-line no-unused-vars
+import PubSubContext from './utils/pubSubContext.js';
 
 import SchemaCache from './utils/schemaCache.js';
 import EventParseError from './utils/eventParseError.js';
@@ -22,7 +24,6 @@ import {
     decodeReplayId
 } from './utils/eventParser.js';
 import SalesforceAuth from './utils/auth.js';
-import PubSubContext from './utils/pubSubContext.js';
 
 /**
  * @typedef {Object} PublishResult
@@ -264,7 +265,7 @@ export default class PubSubApiClient {
         });
     }
 
-    async subscribeFromStream(subscribeRequest) {
+    async subscribeAsStream(subscribeRequest) {
         let { topicName, numRequested } = subscribeRequest;
 
         // Check client connection
@@ -289,10 +290,26 @@ export default class PubSubApiClient {
         return subscription;
     }
 
-    async initializeSubscription(
+    /**
+     * Setup subscription and lifecycle callbacks
+     *
+     * @param {string} topicName subscribed topic
+     * @param {number} numRequested number of messages requested for topic
+     * @param {boolean} isInfiniteEventRequest request additional event after we processed last event
+     * @param {PubSubContext | PubSubEventEmitter} pubSubContext
+     * @param {() => Promise<void>} onEnd callback on stream end
+     * @param {(error: Error) => Promise<void>} onError callback on stream error or event parsing error
+     * @param {(data: Record<string, unknown>) => Promise<void>} onKeepAlive every 270sec, salesforce sends a keepalive event. Callback to the keepalive event
+     * @param {() => Promise<void>} onLastEvent callback when processing last event of the subscription stream
+     * @param {(data: Record<string, unknown>) => Promise<void>} onParsedEvent callback when the event has been validated according to SF schema
+     * @param {(status: Record<string, unknown>) => Promise<void>} onStatus
+     * @returns {Promise<Object>} subscription object
+     */
+    async setupSubscription(
         topicName,
         numRequested,
         isInfiniteEventRequest,
+        pubSubContext,
         onEnd = null,
         onError = null,
         onKeepAlive = null,
@@ -300,8 +317,7 @@ export default class PubSubApiClient {
         onParsedEvent = null,
         onStatus = null
     ) {
-        const pubSubContext = new PubSubContext(topicName, numRequested);
-        const subscription = await this.subscribeFromStream({
+        const subscription = await this.subscribeAsStream({
             topicName,
             numRequested
         });
@@ -380,7 +396,7 @@ export default class PubSubApiClient {
                             event,
                             latestReplayId
                         );
-                        if (onError) await onError;
+                        if (onError) await onError(error);
                         this.#logger.error(parseError);
                     }
 
@@ -415,17 +431,26 @@ export default class PubSubApiClient {
         return subscription;
     }
 
-    async #subscribeWithEventEmitter(
+    /**
+     * Initialize a subscription on {@link topicName} and binds event emitter to subscription stream
+     *
+     * @param {string} topicName
+     * @param {number} numRequested
+     * @param {boolean} isInfiniteEventRequest
+     * @returns {Promise<PubSubEventEmitter>}
+     */
+    async #setupEventEmitterSubscription(
         topicName,
         numRequested,
         isInfiniteEventRequest
     ) {
-        const eventEmitter = new PubSubEventEmitter();
+        const eventEmitter = new PubSubEventEmitter(topicName, numRequested);
 
-        await this.initializeSubscription(
+        await this.setupSubscription(
             topicName,
             numRequested,
             isInfiniteEventRequest,
+            eventEmitter,
             () => eventEmitter.emit('end'),
             (error) => eventEmitter.emit(error),
             (event) => eventEmitter.emit('keepalive', event),
@@ -469,7 +494,7 @@ export default class PubSubApiClient {
                 }
             }
 
-            return this.#subscribeWithEventEmitter(
+            return this.#setupEventEmitterSubscription(
                 topicName,
                 numRequested,
                 isInfiniteEventRequest
@@ -484,7 +509,7 @@ export default class PubSubApiClient {
 
     /**
      * Request additional events on an existing subscription.
-     * @param {PubSubContext} pubSubContext event emitter that was obtained in the first subscribe call
+     * @param {PubSubContext | PubSubEventEmitter} pubSubContext event emitter that was obtained in the first subscribe call
      * @param {number} numRequested number of events requested.
      */
     async requestAdditionalEvents(pubSubContext, numRequested) {

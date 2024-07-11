@@ -66,5 +66,4 @@ export default class PubSubContext {
         this.#requestedEventCount = newRequestedEventCount;
         this.#receivedEventCount = 0;
     }
-
 }
