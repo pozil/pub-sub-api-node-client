@@ -12,6 +12,8 @@ import { EventEmitter } from 'events';
 import { connectivityState } from '@grpc/grpc-js';
 // eslint-disable-next-line no-unused-vars
 import PubSubContext from './utils/pubSubContext.js';
+// eslint-disable-next-line no-unused-vars
+import EventEmitterSubscriber from './utils/eventEmitterSubscriber.js';
 
 import SchemaCache from './utils/schemaCache.js';
 import EventParseError from './utils/eventParseError.js';
@@ -265,6 +267,11 @@ export default class PubSubApiClient {
         });
     }
 
+    /**
+     *
+     * @param subscribeRequest
+     * @returns {Promise<Object>}
+     */
     async subscribeAsStream(subscribeRequest) {
         let { topicName, numRequested } = subscribeRequest;
 
@@ -292,17 +299,11 @@ export default class PubSubApiClient {
 
     /**
      * Setup subscription and lifecycle callbacks
-     *
      * @param {string} topicName subscribed topic
      * @param {number} numRequested number of messages requested for topic
      * @param {boolean} isInfiniteEventRequest request additional event after we processed last event
      * @param {PubSubContext | PubSubEventEmitter} pubSubContext
-     * @param {() => Promise<void>} onEnd callback on stream end
-     * @param {(error: Error) => Promise<void>} onError callback on stream error or event parsing error
-     * @param {(data: Record<string, unknown>) => Promise<void>} onKeepAlive every 270sec, salesforce sends a keepalive event. Callback to the keepalive event
-     * @param {() => Promise<void>} onLastEvent callback when processing last event of the subscription stream
-     * @param {(data: Record<string, unknown>) => Promise<void>} onParsedEvent callback when the event has been validated according to SF schema
-     * @param {(status: Record<string, unknown>) => Promise<void>} onStatus
+     * @param {Subscriber} subscriberInstance
      * @returns {Promise<Object>} subscription object
      */
     async setupSubscription(
@@ -310,12 +311,7 @@ export default class PubSubApiClient {
         numRequested,
         isInfiniteEventRequest,
         pubSubContext,
-        onEnd = null,
-        onError = null,
-        onKeepAlive = null,
-        onLastEvent = null,
-        onParsedEvent = null,
-        onStatus = null
+        subscriberInstance
     ) {
         const subscription = await this.subscribeAsStream({
             topicName,
@@ -326,15 +322,17 @@ export default class PubSubApiClient {
             this.#subscriptions.delete(topicName);
             this.#logger.info('gRPC stream ended');
 
-            if (onEnd) await onEnd();
+            if (subscriberInstance.onEnd) await subscriberInstance.onEnd();
         });
         subscription.on('error', async (error) => {
             this.#logger.error(`gRPC stream error: ${JSON.stringify(error)}`);
-            if (onError) await onError(error);
+            if (subscriberInstance.onError)
+                await subscriberInstance.onError(error);
         });
         subscription.on('status', async (status) => {
             this.#logger.info(`gRPC stream status: ${JSON.stringify(status)}`);
-            if (onStatus) await onStatus(status);
+            if (subscriberInstance.onStatus)
+                await subscriberInstance.onStatus(status);
         });
         subscription.on('data', async (data) => {
             const latestReplayId = decodeReplayId(data.latestReplayId);
@@ -378,7 +376,8 @@ export default class PubSubApiClient {
                         this.#logger.debug(parsedEvent);
 
                         pubSubContext.registerReceivedEvent(event);
-                        if (onParsedEvent) await onParsedEvent(event);
+                        if (subscriberInstance.onData)
+                            await subscriberInstance.onData(event);
                     } catch (error) {
                         // Report event parsing error with replay ID if possible
                         let replayId;
@@ -396,7 +395,8 @@ export default class PubSubApiClient {
                             event,
                             latestReplayId
                         );
-                        if (onError) await onError(error);
+                        if (subscriberInstance.onError)
+                            await subscriberInstance.onError(error);
                         this.#logger.error(parseError);
                     }
 
@@ -413,7 +413,8 @@ export default class PubSubApiClient {
                             );
                         } else {
                             // Emit a 'lastevent' event when reaching the last requested event count
-                            if (onLastEvent) await onLastEvent();
+                            if (subscriberInstance.onLastEvent)
+                                await subscriberInstance.onLastEvent();
                         }
                     }
                 }
@@ -424,7 +425,8 @@ export default class PubSubApiClient {
                     `Received keepalive message. Latest replay ID: ${latestReplayId}`
                 );
                 data.latestReplayId = latestReplayId; // Replace original value with decoded value
-                if (onKeepAlive) await onKeepAlive(data);
+                if (subscriberInstance.onKeepAlive)
+                    await subscriberInstance.onKeepAlive(data);
             }
         });
 
@@ -450,13 +452,7 @@ export default class PubSubApiClient {
             topicName,
             numRequested,
             isInfiniteEventRequest,
-            eventEmitter,
-            () => eventEmitter.emit('end'),
-            (error) => eventEmitter.emit(error),
-            (event) => eventEmitter.emit('keepalive', event),
-            () => eventEmitter.emit('lastevent'),
-            (event) => eventEmitter.emit('data', event),
-            (status) => eventEmitter.emit('status', status)
+            eventEmitter
         );
 
         return eventEmitter;

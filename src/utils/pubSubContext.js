@@ -1,4 +1,8 @@
-
+/**
+ * Context keeping track of the topic name and the volume of events requested/received.
+ * @alias PubSubContext
+ * @global
+ */
 export default class PubSubContext {
     #topicName;
     #requestedEventCount;
@@ -18,6 +22,10 @@ export default class PubSubContext {
         this.#latestReplayId = null;
     }
 
+    /**
+     * Track Pub/Sub API event counts
+     * @param args the event
+     */
     registerReceivedEvent(args) {
         // Track Pub/Sub API events
         this.#receivedEventCount++;

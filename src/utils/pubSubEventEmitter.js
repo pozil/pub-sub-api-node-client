@@ -9,7 +9,8 @@ import PubSubContext from './pubSubContext.js';
  */
 export default class PubSubEventEmitter extends EventEmitter {
     /**
-     *
+     * Context to keep track of subscription data
+     * @type {PubSubContext}
      */
     #subscriptionContext;
 
@@ -24,11 +25,10 @@ export default class PubSubEventEmitter extends EventEmitter {
         this.#subscriptionContext = new PubSubContext(topicName, requestedEventCount)
     }
 
-
-    emit(eventName, args) {
-        return super.emit(eventName, args);
-    }
-
+    /**
+     * Register event to subscription context
+     * @param args the event
+     */
     registerReceivedEvent(args) {
         this.#subscriptionContext.registerReceivedEvent(args)
     }
