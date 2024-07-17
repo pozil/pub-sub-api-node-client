@@ -305,7 +305,9 @@ try {
 
     // Handle incoming events
     eventEmitter.on('data', (event) => {
-        // Logic for handling a single event
+        // Logic for handling a single event.
+        // Unless you request additional events later, this should get called up to 10 times
+        // given the initial subscribrition boundary.
     });
 
     // Handle last requested event
