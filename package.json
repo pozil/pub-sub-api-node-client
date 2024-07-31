@@ -1,6 +1,6 @@
 {
     "name": "salesforce-pubsub-api-client",
-    "version": "4.1.0",
+    "version": "4.1.1",
     "type": "module",
     "description": "A node client for the Salesforce Pub/Sub API",
     "author": "pozil",
@@ -17,27 +17,27 @@
         "build": "tsup && tsc",
         "prettier": "prettier --write '**/*.{css,html,js,json,md,yaml,yml}'",
         "lint": "eslint src",
-        "prepare": "husky install",
+        "prepare": "husky || true",
         "precommit": "lint-staged",
         "prepublishOnly": "npm run build"
     },
     "dependencies": {
-        "@grpc/grpc-js": "^1.10.8",
+        "@grpc/grpc-js": "^1.11.1",
         "@grpc/proto-loader": "^0.7.13",
         "avro-js": "^1.11.3",
         "certifi": "^14.5.15",
         "dotenv": "^16.4.5",
-        "jsforce": "^1.11.1",
-        "undici": "^6.19.2"
+        "jsforce": "^3.3.4",
+        "undici": "^6.19.5"
     },
     "devDependencies": {
         "@chialab/esbuild-plugin-meta-url": "^0.18.2",
-        "eslint": "^9.6.0",
-        "husky": "^9.0.11",
+        "eslint": "^9.8.0",
+        "husky": "^9.1.4",
         "lint-staged": "^15.2.7",
-        "prettier": "^3.3.2",
-        "tsup": "^8.1.0",
-        "typescript": "^5.5.3"
+        "prettier": "^3.3.3",
+        "tsup": "^8.2.3",
+        "typescript": "^5.5.4"
     },
     "lint-staged": {
         "**/src/*.{css,html,js,json,md,yaml,yml}": [

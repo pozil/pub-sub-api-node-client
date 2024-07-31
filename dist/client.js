@@ -958,6 +958,11 @@ var PubSubApiClient = class {
    * @memberof PubSubApiClient.prototype
    */
   close() {
+    this.#logger.info("Clear subscriptions");
+    this.#subscriptions.forEach((subscription) => {
+      subscription.removeAllListeners();
+    });
+    this.#subscriptions.clear();
     this.#logger.info("Closing gRPC stream");
     this.#client.close();
   }
