@@ -792,13 +792,13 @@ var PubSubApiClient = class {
         topicName,
         numRequested
       );
-      subscription.on("data", (data) => {
+      subscription.on("data", async (data) => {
         const latestReplayId = decodeReplayId(data.latestReplayId);
         if (data.events) {
           this.#logger.info(
             `Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
           );
-          data.events.forEach(async (event) => {
+          for (const event of data.events) {
             try {
               let schema;
               if (topicName.endsWith("__chn")) {
@@ -851,7 +851,7 @@ var PubSubApiClient = class {
                 eventEmitter.emit("lastevent");
               }
             }
-          });
+          }
         } else {
           this.#logger.debug(
             `Received keepalive message. Latest replay ID: ${latestReplayId}`
