@@ -318,13 +318,13 @@ export default class PubSubApiClient {
                 topicName,
                 numRequested
             );
-            subscription.on('data', (data) => {
+            subscription.on('data', async (data) => {
                 const latestReplayId = decodeReplayId(data.latestReplayId);
                 if (data.events) {
                     this.#logger.info(
                         `Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
                     );
-                    data.events.forEach(async (event) => {
+                    for (const event of data.events) {
                         try {
                             let schema;
                             // Are we subscribing to a custom channel?
@@ -395,7 +395,7 @@ export default class PubSubApiClient {
                                 eventEmitter.emit('lastevent');
                             }
                         }
-                    });
+                    }
                 } else {
                     // If there are no events then, every 270 seconds (or less) the server publishes a keepalive message with
                     // the latestReplayId and pendingNumRequested (the number of events that the client is still waiting for)
