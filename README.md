@@ -438,33 +438,33 @@ Returns: Promise holding a `PublishResult` object with `replayId` and `correlati
 | `payload`        | Object |                                                                                           |
 | `correlationKey` | string | optional correlation key. If you don't provide one, we'll generate a random UUID for you. |
 
-#### `async subscribe(topicName, [numRequested]) → {Promise.<EventEmitter>}`
+#### `async subscribe(topicName, [numRequested]) → {Promise.<PubSubEventEmitter>}`
 
 Subscribes to a topic.
 
-Returns: Promise that holds an `EventEmitter` that allows you to listen to received events and stream lifecycle events.
+Returns: Promise that holds an `PubSubEventEmitter` that allows you to listen to received events and stream lifecycle events.
 
 | Name           | Type   | Description                                                                                                    |
 | -------------- | ------ | -------------------------------------------------------------------------------------------------------------- |
 | `topicName`    | string | name of the topic that we're subscribing to                                                                    |
 | `numRequested` | number | optional number of events requested. If not supplied or null, the client keeps the subscription alive forever. |
 
-#### `async subscribeFromEarliestEvent(topicName, [numRequested]) → {Promise.<EventEmitter>}`
+#### `async subscribeFromEarliestEvent(topicName, [numRequested]) → {Promise.<PubSubEventEmitter>}`
 
 Subscribes to a topic and retrieves all past events in retention window.
 
-Returns: Promise that holds an `EventEmitter` that allows you to listen to received events and stream lifecycle events.
+Returns: Promise that holds an `PubSubEventEmitter` that allows you to listen to received events and stream lifecycle events.
 
 | Name           | Type   | Description                                                                                                    |
 | -------------- | ------ | -------------------------------------------------------------------------------------------------------------- |
 | `topicName`    | string | name of the topic that we're subscribing to                                                                    |
 | `numRequested` | number | optional number of events requested. If not supplied or null, the client keeps the subscription alive forever. |
 
-#### `async subscribeFromReplayId(topicName, numRequested, replayId) → {Promise.<EventEmitter>}`
+#### `async subscribeFromReplayId(topicName, numRequested, replayId) → {Promise.<PubSubEventEmitter>}`
 
 Subscribes to a topic and retrieves past events starting from a replay ID.
 
-Returns: Promise that holds an `EventEmitter` that allows you to listen to received events and stream lifecycle events.
+Returns: Promise that holds an `PubSubEventEmitter` that allows you to listen to received events and stream lifecycle events.
 
 | Name           | Type   | Description                                                                             |
 | -------------- | ------ | --------------------------------------------------------------------------------------- |

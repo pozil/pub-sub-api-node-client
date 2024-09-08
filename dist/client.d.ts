@@ -34,27 +34,27 @@ export default class PubSubApiClient {
      * Subscribes to a topic and retrieves all past events in retention window.
      * @param {string} topicName name of the topic that we're subscribing to
      * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
-     * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
+     * @returns {Promise<PubSubEventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
      */
-    subscribeFromEarliestEvent(topicName: string, numRequested?: number | null): Promise<EventEmitter>;
+    subscribeFromEarliestEvent(topicName: string, numRequested?: number | null): Promise<PubSubEventEmitter>;
     /**
      * Subscribes to a topic and retrieves past events starting from a replay ID.
      * @param {string} topicName name of the topic that we're subscribing to
      * @param {number | null} numRequested number of events requested. If null, the client keeps the subscription alive forever.
      * @param {number} replayId replay ID
-     * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
+     * @returns {Promise<PubSubEventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
      */
-    subscribeFromReplayId(topicName: string, numRequested: number | null, replayId: number): Promise<EventEmitter>;
+    subscribeFromReplayId(topicName: string, numRequested: number | null, replayId: number): Promise<PubSubEventEmitter>;
     /**
      * Subscribes to a topic.
      * @param {string} topicName name of the topic that we're subscribing to
      * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
-     * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
+     * @returns {Promise<PubSubEventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
      */
-    subscribe(topicName: string, numRequested?: number | null): Promise<EventEmitter>;
+    subscribe(topicName: string, numRequested?: number | null): Promise<PubSubEventEmitter>;
     /**
      * Request additional events on an existing subscription.
      * @param {PubSubEventEmitter} eventEmitter event emitter that was obtained in the first subscribe call
@@ -88,6 +88,5 @@ export type Logger = {
     warn: Function;
 };
 import { connectivityState } from '@grpc/grpc-js';
-import { EventEmitter } from 'events';
 import PubSubEventEmitter from './utils/pubSubEventEmitter.js';
 //# sourceMappingURL=client.d.ts.map

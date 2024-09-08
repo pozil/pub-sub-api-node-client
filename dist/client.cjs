@@ -741,7 +741,7 @@ var PubSubApiClient = class {
    * Subscribes to a topic and retrieves all past events in retention window.
    * @param {string} topicName name of the topic that we're subscribing to
    * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
-   * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
+   * @returns {Promise<PubSubEventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
    * @memberof PubSubApiClient.prototype
    */
   async subscribeFromEarliestEvent(topicName, numRequested = null) {
@@ -756,7 +756,7 @@ var PubSubApiClient = class {
    * @param {string} topicName name of the topic that we're subscribing to
    * @param {number | null} numRequested number of events requested. If null, the client keeps the subscription alive forever.
    * @param {number} replayId replay ID
-   * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
+   * @returns {Promise<PubSubEventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
    * @memberof PubSubApiClient.prototype
    */
   async subscribeFromReplayId(topicName, numRequested, replayId) {
@@ -771,7 +771,7 @@ var PubSubApiClient = class {
    * Subscribes to a topic.
    * @param {string} topicName name of the topic that we're subscribing to
    * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
-   * @returns {Promise<EventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
+   * @returns {Promise<PubSubEventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
    * @memberof PubSubApiClient.prototype
    */
   async subscribe(topicName, numRequested = null) {
