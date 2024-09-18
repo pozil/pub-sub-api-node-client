@@ -345,13 +345,19 @@ export default class PubSubApiClient {
                                     this.#logger.info(
                                         `Event schema changed (${schema.id} != ${event.event.schemaId}), reloading: ${topicName}`
                                     );
+
+                                    // update the topic name schema, it might have changed
                                     this.#schemaChache.deleteWithTopicName(
                                         topicName
                                     );
-                                    schema =
-                                        await this.#getEventSchemaFromTopicName(
-                                            topicName
-                                        );
+                                    await this.#getEventSchemaFromTopicName(
+                                        topicName
+                                    );
+
+                                    // we ask for this specific schema because it can be an old message in th event bus that had a different schema than the actual
+                                    schema = await this.#getEventSchemaFromId(
+                                        event.event.schemaId
+                                    );
                                 }
                             }
                             // Parse event thanks to schema

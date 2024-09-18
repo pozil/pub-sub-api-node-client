@@ -849,8 +849,11 @@ var PubSubApiClient = class {
                   this.#schemaChache.deleteWithTopicName(
                     topicName
                   );
-                  schema = await this.#getEventSchemaFromTopicName(
+                  await this.#getEventSchemaFromTopicName(
                     topicName
+                  );
+                  schema = await this.#getEventSchemaFromId(
+                    event.event.schemaId
                   );
                 }
               }
