@@ -370,34 +370,10 @@ export default class PubSubApiClient {
                     );
                     for (const event of data.events) {
                         try {
-                            let schema;
-                            // Are we subscribing to a custom channel?
-                            if (topicName.endsWith('__chn')) {
-                                // Use schema ID instead of topic name to retrieve schema
-                                schema = await this.#getEventSchemaFromId(
-                                    event.event.schemaId
-                                );
-                            } else {
-                                // Load event schema from cache or from the client
-                                schema =
-                                    await this.#getEventSchemaFromTopicName(
-                                        topicName
-                                    );
-                                // Make sure that schema ID matches. If not, event fields may have changed
-                                // and client needs to reload schema
-                                if (schema.id !== event.event.schemaId) {
-                                    this.#logger.info(
-                                        `Event schema changed (${schema.id} != ${event.event.schemaId}), reloading: ${topicName}`
-                                    );
-                                    this.#schemaChache.deleteWithTopicName(
-                                        topicName
-                                    );
-                                    schema =
-                                        await this.#getEventSchemaFromTopicName(
-                                            topicName
-                                        );
-                                }
-                            }
+                            // Load event schema from cache or from the gRPC client
+                            const schema = await this.#getEventSchemaFromId(
+                                event.event.schemaId
+                            );
                             // Retrieve subscription
                             const subscription =
                                 this.#subscriptions.get(topicName);
@@ -550,7 +526,8 @@ export default class PubSubApiClient {
             if (!this.#client) {
                 throw new Error('Pub/Sub API client is not connected.');
             }
-            const schema = await this.#getEventSchemaFromTopicName(topicName);
+            const schema =
+                await this.#fetchEventSchemaFromTopicNameWithClient(topicName);
 
             const id = correlationKey ? correlationKey : crypto.randomUUID();
             const response = await new Promise((resolve, reject) => {
@@ -597,31 +574,6 @@ export default class PubSubApiClient {
     }
 
     /**
-     * Retrieves an event schema from the cache based on a topic name.
-     * If it's not cached, fetches the shema with the gRPC client.
-     * @param {string} topicName name of the topic that we're fetching
-     * @returns {Promise<Schema>} Promise holding parsed event schema
-     */
-    async #getEventSchemaFromTopicName(topicName) {
-        let schema = this.#schemaChache.getFromTopicName(topicName);
-        if (!schema) {
-            try {
-                schema =
-                    await this.#fetchEventSchemaFromTopicNameWithClient(
-                        topicName
-                    );
-                this.#schemaChache.setWithTopicName(topicName, schema);
-            } catch (error) {
-                throw new Error(
-                    `Failed to load schema for topic ${topicName}`,
-                    { cause: error }
-                );
-            }
-        }
-        return schema;
-    }
-
-    /**
      * Retrieves an event schema from the cache based on its ID.
      * If it's not cached, fetches the shema with the gRPC client.
      * @param {string} schemaId ID of the schema that we're fetching
@@ -649,6 +601,7 @@ export default class PubSubApiClient {
      */
     async #fetchEventSchemaFromTopicNameWithClient(topicName) {
         return new Promise((resolve, reject) => {
+            // Query topic to obtain schema ID
             this.#client.GetTopic(
                 { topicName },
                 async (topicError, response) => {
@@ -657,12 +610,19 @@ export default class PubSubApiClient {
                     } else {
                         // Get the schema information
                         const { schemaId } = response;
-                        const schemaInfo =
-                            await this.#fetchEventSchemaFromIdWithClient(
-                                schemaId
-                            );
+                        // Check cache for schema thanks to ID
+                        let schema = this.#schemaChache.getFromId(schemaId);
+                        if (!schema) {
+                            // Fetch schema with gRPC client
+                            schema =
+                                await this.#fetchEventSchemaFromIdWithClient(
+                                    schemaId
+                                );
+                        }
                         this.#logger.info(`Topic schema loaded: ${topicName}`);
-                        resolve(schemaInfo);
+                        // Add schema to cache
+                        this.#schemaChache.set(schema);
+                        resolve(schema);
                     }
                 }
             );
