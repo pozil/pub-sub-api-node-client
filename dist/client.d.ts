@@ -6,24 +6,16 @@
 export default class PubSubApiClient {
     /**
      * Builds a new Pub/Sub API client
+     * @param {Configuration} config the client configuration
      * @param {Logger} [logger] an optional custom logger. The client uses the console if no value is supplied.
      */
-    constructor(logger?: Logger);
+    constructor(config: Configuration, logger?: Logger);
     /**
      * Authenticates with Salesforce then, connects to the Pub/Sub API.
      * @returns {Promise<void>} Promise that resolves once the connection is established
      * @memberof PubSubApiClient.prototype
      */
     connect(): Promise<void>;
-    /**
-     * Connects to the Pub/Sub API with user-supplied authentication.
-     * @param {string} accessToken Salesforce access token
-     * @param {string} instanceUrl Salesforce instance URL
-     * @param {string} [organizationId] optional organization ID. If you don't provide one, we'll attempt to parse it from the accessToken.
-     * @returns {Promise<void>} Promise that resolves once the connection is established
-     * @memberof PubSubApiClient.prototype
-     */
-    connectWithAuth(accessToken: string, instanceUrl: string, organizationId?: string): Promise<void>;
     /**
      * Get connectivity state from current channel.
      * @returns {Promise<connectivityState>} Promise that holds channel's connectivity information {@link connectivityState}
@@ -33,34 +25,34 @@ export default class PubSubApiClient {
     /**
      * Subscribes to a topic and retrieves all past events in retention window.
      * @param {string} topicName name of the topic that we're subscribing to
+     * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
      * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
-     * @returns {Promise<PubSubEventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
      */
-    subscribeFromEarliestEvent(topicName: string, numRequested?: number | null): Promise<PubSubEventEmitter>;
+    subscribeFromEarliestEvent(topicName: string, subscribeCallback: SubscribeCallback, numRequested?: number | null): void;
     /**
      * Subscribes to a topic and retrieves past events starting from a replay ID.
      * @param {string} topicName name of the topic that we're subscribing to
+     * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
      * @param {number | null} numRequested number of events requested. If null, the client keeps the subscription alive forever.
      * @param {number} replayId replay ID
-     * @returns {Promise<PubSubEventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
      */
-    subscribeFromReplayId(topicName: string, numRequested: number | null, replayId: number): Promise<PubSubEventEmitter>;
+    subscribeFromReplayId(topicName: string, subscribeCallback: SubscribeCallback, numRequested: number | null, replayId: number): void;
     /**
      * Subscribes to a topic.
      * @param {string} topicName name of the topic that we're subscribing to
+     * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
      * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
-     * @returns {Promise<PubSubEventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
      * @memberof PubSubApiClient.prototype
      */
-    subscribe(topicName: string, numRequested?: number | null): Promise<PubSubEventEmitter>;
+    subscribe(topicName: string, subscribeCallback: SubscribeCallback, numRequested?: number | null): void;
     /**
      * Request additional events on an existing subscription.
-     * @param {PubSubEventEmitter} eventEmitter event emitter that was obtained in the first subscribe call
+     * @param {string} topicName topic name
      * @param {number} numRequested number of events requested.
      */
-    requestAdditionalEvents(eventEmitter: PubSubEventEmitter, numRequested: number): Promise<void>;
+    requestAdditionalEvents(topicName: string, numRequested: number): void;
     /**
      * Publishes a payload to a topic using the gRPC client.
      * @param {string} topicName name of the topic that we're subscribing to
@@ -81,12 +73,58 @@ export type PublishResult = {
     replayId: number;
     correlationKey: string;
 };
+export type SubscribeCallback = (subscription: SubscriptionInfo, callbackType: SubscribeCallbackType, data?: any) => any;
+export type Subscription = {
+    info: SubscriptionInfo;
+    grpcSubscription: any;
+    subscribeCallback: SubscribeCallback;
+};
+export type SubscriptionInfo = {
+    topicName: string;
+    requestedEventCount: number;
+    receivedEventCount: number;
+    lastReplayId: number;
+};
+export type Configuration = {
+    authType: AuthType;
+    pubSubEndpoint: string;
+    loginUrl: string;
+    username: string;
+    password: string;
+    userToken: string;
+    clientId: string;
+    clientSecret: string;
+    privateKey: string;
+    accessToken: string;
+    instanceUrl: string;
+    organizationId: string;
+};
 export type Logger = {
     debug: Function;
     info: Function;
     error: Function;
     warn: Function;
 };
+export type SubscribeRequest = {
+    topicName: string;
+    numRequested: number;
+    replayPreset?: number;
+    replayId?: number;
+};
 import { connectivityState } from '@grpc/grpc-js';
-import PubSubEventEmitter from './utils/pubSubEventEmitter.js';
+import { Configuration } from './utils/configuration.js';
+/**
+ * Enum for subscripe callback type values
+ */
+type SubscribeCallbackType = string;
+declare namespace SubscribeCallbackType {
+    let EVENT: string;
+    let LAST_EVENT: string;
+    let ERROR: string;
+    let END: string;
+    let GRPC_STATUS: string;
+    let GRPC_KEEP_ALIVE: string;
+}
+import { AuthType } from './utils/configuration.js';
+export {};
 //# sourceMappingURL=client.d.ts.map
