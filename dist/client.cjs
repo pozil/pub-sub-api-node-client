@@ -897,7 +897,7 @@ var PubSubApiClient = class {
       if (!this.#client) {
         throw new Error("Pub/Sub API client is not connected.");
       }
-      const schema = await this.#getEventSchemaFromTopicName(topicName);
+      const schema = await this.#fetchEventSchemaFromTopicNameWithClient(topicName);
       const id = correlationKey ? correlationKey : import_crypto2.default.randomUUID();
       const response = await new Promise((resolve, reject) => {
         this.#client.Publish(
@@ -944,23 +944,6 @@ var PubSubApiClient = class {
     this.#client.close();
   }
   /**
-   * Retrieves an event schema from the cache based on a topic name.
-   * If it's not cached, fetches the shema with the gRPC client.
-   * @param {string} topicName name of the topic that we're fetching
-   * @returns {Promise<Schema>} Promise holding parsed event schema
-   */
-  async #getEventSchemaFromTopicName(topicName) {
-    try {
-      const schema = await this.#fetchEventSchemaFromTopicNameWithClient(topicName);
-      this.#schemaChache.set(schema);
-      return schema;
-    } catch (error) {
-      throw new Error(`Failed to load schema for topic ${topicName}`, {
-        cause: error
-      });
-    }
-  }
-  /**
    * Retrieves an event schema from the cache based on its ID.
    * If it's not cached, fetches the shema with the gRPC client.
    * @param {string} schemaId ID of the schema that we're fetching
@@ -994,11 +977,15 @@ var PubSubApiClient = class {
             reject(topicError);
           } else {
             const { schemaId } = response;
-            const schemaInfo = await this.#fetchEventSchemaFromIdWithClient(
-              schemaId
-            );
+            let schema = this.#schemaChache.getFromId(schemaId);
+            if (!schema) {
+              schema = await this.#fetchEventSchemaFromIdWithClient(
+                schemaId
+              );
+            }
             this.#logger.info(`Topic schema loaded: ${topicName}`);
-            resolve(schemaInfo);
+            this.#schemaChache.set(schema);
+            resolve(schema);
           }
         }
       );
