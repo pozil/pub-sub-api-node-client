@@ -12,15 +12,8 @@ export default class SchemaCache {
      */
     #schemaChache;
 
-    /**
-     * Map of schemas IDs indexed by topic name
-     * @type {Map<string,string>}
-     */
-    #topicNameCache;
-
     constructor() {
         this.#schemaChache = new Map();
-        this.#topicNameCache = new Map();
     }
 
     /**
@@ -33,45 +26,10 @@ export default class SchemaCache {
     }
 
     /**
-     * Retrieves a schema based on a topic name
-     * @param {string} topicName
-     * @returns {Schema} schema or undefined if not found
-     */
-    getFromTopicName(topicName) {
-        const schemaId = this.#topicNameCache.get(topicName);
-        if (schemaId) {
-            return this.getFromId(schemaId);
-        }
-        return undefined;
-    }
-
-    /**
      * Caches a schema
      * @param {Schema} schema
      */
     set(schema) {
         this.#schemaChache.set(schema.id, schema);
-    }
-
-    /**
-     * Caches a schema with a topic name
-     * @param {string} topicName
-     * @param {Schema} schema
-     */
-    setWithTopicName(topicName, schema) {
-        this.#topicNameCache.set(topicName, schema.id);
-        this.set(schema);
-    }
-
-    /**
-     * Delete a schema based on the topic name
-     * @param {string} topicName
-     */
-    deleteWithTopicName(topicName) {
-        const schemaId = this.#topicNameCache.get(topicName);
-        if (schemaId) {
-            this.#schemaChache.delete(schemaId);
-        }
-        this.#topicNameCache.delete(topicName);
     }
 }

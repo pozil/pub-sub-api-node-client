@@ -48,14 +48,8 @@ var SchemaCache = class {
    * @type {Map<string,Schema>}
    */
   #schemaChache;
-  /**
-   * Map of schemas IDs indexed by topic name
-   * @type {Map<string,string>}
-   */
-  #topicNameCache;
   constructor() {
     this.#schemaChache = /* @__PURE__ */ new Map();
-    this.#topicNameCache = /* @__PURE__ */ new Map();
   }
   /**
    * Retrieves a schema based on its ID
@@ -66,43 +60,11 @@ var SchemaCache = class {
     return this.#schemaChache.get(schemaId);
   }
   /**
-   * Retrieves a schema based on a topic name
-   * @param {string} topicName
-   * @returns {Schema} schema or undefined if not found
-   */
-  getFromTopicName(topicName) {
-    const schemaId = this.#topicNameCache.get(topicName);
-    if (schemaId) {
-      return this.getFromId(schemaId);
-    }
-    return void 0;
-  }
-  /**
    * Caches a schema
    * @param {Schema} schema
    */
   set(schema) {
     this.#schemaChache.set(schema.id, schema);
-  }
-  /**
-   * Caches a schema with a topic name
-   * @param {string} topicName
-   * @param {Schema} schema
-   */
-  setWithTopicName(topicName, schema) {
-    this.#topicNameCache.set(topicName, schema.id);
-    this.set(schema);
-  }
-  /**
-   * Delete a schema based on the topic name
-   * @param {string} topicName
-   */
-  deleteWithTopicName(topicName) {
-    const schemaId = this.#topicNameCache.get(topicName);
-    if (schemaId) {
-      this.#schemaChache.delete(schemaId);
-    }
-    this.#topicNameCache.delete(topicName);
   }
 };
 
@@ -833,27 +795,9 @@ var PubSubApiClient = class {
           );
           for (const event of data.events) {
             try {
-              let schema;
-              if (topicName.endsWith("__chn")) {
-                schema = await this.#getEventSchemaFromId(
-                  event.event.schemaId
-                );
-              } else {
-                schema = await this.#getEventSchemaFromTopicName(
-                  topicName
-                );
-                if (schema.id !== event.event.schemaId) {
-                  this.#logger.info(
-                    `Event schema changed (${schema.id} != ${event.event.schemaId}), reloading: ${topicName}`
-                  );
-                  this.#schemaChache.deleteWithTopicName(
-                    topicName
-                  );
-                  schema = await this.#getEventSchemaFromTopicName(
-                    topicName
-                  );
-                }
-              }
+              const schema = await this.#getEventSchemaFromId(
+                event.event.schemaId
+              );
               const parsedEvent = parseEvent(schema, event);
               this.#logger.debug(parsedEvent);
               eventEmitter.emit("data", parsedEvent);
@@ -1006,21 +950,15 @@ var PubSubApiClient = class {
    * @returns {Promise<Schema>} Promise holding parsed event schema
    */
   async #getEventSchemaFromTopicName(topicName) {
-    let schema = this.#schemaChache.getFromTopicName(topicName);
-    if (!schema) {
-      try {
-        schema = await this.#fetchEventSchemaFromTopicNameWithClient(
-          topicName
-        );
-        this.#schemaChache.setWithTopicName(topicName, schema);
-      } catch (error) {
-        throw new Error(
-          `Failed to load schema for topic ${topicName}`,
-          { cause: error }
-        );
-      }
+    try {
+      const schema = await this.#fetchEventSchemaFromTopicNameWithClient(topicName);
+      this.#schemaChache.set(schema);
+      return schema;
+    } catch (error) {
+      throw new Error(`Failed to load schema for topic ${topicName}`, {
+        cause: error
+      });
     }
-    return schema;
   }
   /**
    * Retrieves an event schema from the cache based on its ID.

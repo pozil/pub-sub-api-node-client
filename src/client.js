@@ -326,34 +326,10 @@ export default class PubSubApiClient {
                     );
                     for (const event of data.events) {
                         try {
-                            let schema;
-                            // Are we subscribing to a custom channel?
-                            if (topicName.endsWith('__chn')) {
-                                // Use schema ID instead of topic name to retrieve schema
-                                schema = await this.#getEventSchemaFromId(
-                                    event.event.schemaId
-                                );
-                            } else {
-                                // Load event schema from cache or from the client
-                                schema =
-                                    await this.#getEventSchemaFromTopicName(
-                                        topicName
-                                    );
-                                // Make sure that schema ID matches. If not, event fields may have changed
-                                // and client needs to reload schema
-                                if (schema.id !== event.event.schemaId) {
-                                    this.#logger.info(
-                                        `Event schema changed (${schema.id} != ${event.event.schemaId}), reloading: ${topicName}`
-                                    );
-                                    this.#schemaChache.deleteWithTopicName(
-                                        topicName
-                                    );
-                                    schema =
-                                        await this.#getEventSchemaFromTopicName(
-                                            topicName
-                                        );
-                                }
-                            }
+                            // Load event schema from cache or from the gRPC client
+                            const schema = await this.#getEventSchemaFromId(
+                                event.event.schemaId
+                            );
                             // Parse event thanks to schema
                             const parsedEvent = parseEvent(schema, event);
                             this.#logger.debug(parsedEvent);
@@ -528,22 +504,16 @@ export default class PubSubApiClient {
      * @returns {Promise<Schema>} Promise holding parsed event schema
      */
     async #getEventSchemaFromTopicName(topicName) {
-        let schema = this.#schemaChache.getFromTopicName(topicName);
-        if (!schema) {
-            try {
-                schema =
-                    await this.#fetchEventSchemaFromTopicNameWithClient(
-                        topicName
-                    );
-                this.#schemaChache.setWithTopicName(topicName, schema);
-            } catch (error) {
-                throw new Error(
-                    `Failed to load schema for topic ${topicName}`,
-                    { cause: error }
-                );
-            }
+        try {
+            const schema =
+                await this.#fetchEventSchemaFromTopicNameWithClient(topicName);
+            this.#schemaChache.set(schema);
+            return schema;
+        } catch (error) {
+            throw new Error(`Failed to load schema for topic ${topicName}`, {
+                cause: error
+            });
         }
-        return schema;
     }
 
     /**
