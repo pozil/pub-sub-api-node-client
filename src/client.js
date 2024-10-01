@@ -16,7 +16,8 @@ import { AuthType, Configuration } from './utils/configuration.js';
 import {
     parseEvent,
     encodeReplayId,
-    decodeReplayId
+    decodeReplayId,
+    toJsonString
 } from './utils/eventParser.js';
 import SalesforceAuth from './utils/auth.js';
 
@@ -163,7 +164,8 @@ export default class PubSubApiClient {
     }
 
     /**
-     * Authenticates with Salesforce then, connects to the Pub/Sub API.
+     * Authenticates with Salesforce (if not using user-supplied authentication mode) then,
+     * connects to the Pub/Sub API.
      * @returns {Promise<void>} Promise that resolves once the connection is established
      * @memberof PubSubApiClient.prototype
      */
@@ -370,6 +372,9 @@ export default class PubSubApiClient {
                     );
                     for (const event of data.events) {
                         try {
+                            this.#logger.debug(
+                                `Raw event: ${toJsonString(event)}`
+                            );
                             // Load event schema from cache or from the gRPC client
                             const schema = await this.#getEventSchemaFromId(
                                 event.event.schemaId
@@ -385,7 +390,9 @@ export default class PubSubApiClient {
                             subscription.info.receivedEventCount++;
                             // Parse event thanks to schema
                             const parsedEvent = parseEvent(schema, event);
-                            this.#logger.debug(parsedEvent);
+                            this.#logger.debug(
+                                `Parsed event: ${toJsonString(parseEvent)}`
+                            );
                             subscribeCallback(
                                 subscription.info,
                                 SubscribeCallbackType.EVENT,
