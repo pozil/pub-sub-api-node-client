@@ -7,7 +7,7 @@ export async function waitFor(timeoutDuration, checkFunction) {
         let checkInterval;
         const waitTimeout = setTimeout(() => {
             clearInterval(checkInterval);
-            reject();
+            reject(`waitFor timed out after ${timeoutDuration} ms`);
         }, timeoutDuration);
         checkInterval = setInterval(() => {
             if (checkFunction()) {
