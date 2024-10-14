@@ -13,7 +13,6 @@ node_modules
 jsconfig.json
 .vscode
 .idea
-package-lock.json
 
 # MacOS system files
 .DS_Store
