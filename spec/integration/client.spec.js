@@ -23,6 +23,7 @@ if (process.env.TEST_LOGGER === 'simpleFileLogger') {
     logger = console;
 }
 
+const EXTENDED_JASMINE_TIMEOUT = 10000;
 const PLATFORM_EVENT_TOPIC = '/event/Sample__e';
 const CHANGE_EVENT_TOPIC = '/data/AccountChangeEvent';
 
@@ -108,7 +109,7 @@ describe('Client', function () {
         expect(receivedSub?.topicName).toBe(PLATFORM_EVENT_TOPIC);
         expect(receivedSub?.receivedEventCount).toBe(1);
         expect(receivedSub?.requestedEventCount).toBe(1);
-    });
+    }, EXTENDED_JASMINE_TIMEOUT);
 
     it('supports user supplied auth with change event', async function () {
         let receivedEvent, receivedSub;
@@ -167,7 +168,7 @@ describe('Client', function () {
         expect(receivedEvent.payload.BillingAddress.City).toBe(
             account.BillingCity
         );
-    });
+    }, EXTENDED_JASMINE_TIMEOUT);
 
     it('supports usermame/password auth with platform event', async function () {
         let receivedEvent, receivedSub;
@@ -218,7 +219,7 @@ describe('Client', function () {
         expect(receivedSub?.topicName).toBe(PLATFORM_EVENT_TOPIC);
         expect(receivedSub?.receivedEventCount).toBe(1);
         expect(receivedSub?.requestedEventCount).toBe(1);
-    });
+    }, EXTENDED_JASMINE_TIMEOUT);
 
     it('supports client credentials OAuth flow with platform event', async function () {
         let receivedEvent, receivedSub;
@@ -268,7 +269,7 @@ describe('Client', function () {
         expect(receivedSub?.topicName).toBe(PLATFORM_EVENT_TOPIC);
         expect(receivedSub?.receivedEventCount).toBe(1);
         expect(receivedSub?.requestedEventCount).toBe(1);
-    });
+    }, EXTENDED_JASMINE_TIMEOUT);
 
     it('supports JWT OAuth flow with platform event', async function () {
         let receivedEvent, receivedSub;
@@ -324,5 +325,5 @@ describe('Client', function () {
         expect(receivedSub?.topicName).toBe(PLATFORM_EVENT_TOPIC);
         expect(receivedSub?.receivedEventCount).toBe(1);
         expect(receivedSub?.requestedEventCount).toBe(1);
-    });
+    }, EXTENDED_JASMINE_TIMEOUT);
 });
