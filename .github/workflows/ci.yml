@@ -1,0 +1,50 @@
+# Unique name for this workflow
+name: CI
+
+# Definition when the workflow should run
+on:
+    workflow_dispatch:
+    push:
+        branches:
+            - main
+
+# Jobs to be executed
+jobs:
+    format-lint-test:
+        runs-on: ubuntu-latest
+        steps:
+            # Checkout the source code
+            - name: 'Checkout source code'
+              uses: actions/checkout@v4
+
+            # Install Volta to enforce proper node and package manager versions
+            - name: 'Install Volta'
+              uses: volta-cli/action@v4
+
+            # Cache node_modules to speed up the process
+            - name: 'Restore node_modules cache'
+              id: cache-npm
+              uses: actions/cache@v4
+              with:
+                  path: node_modules
+                  key: npm-${{ hashFiles('**/package-lock.json') }}
+                  restore-keys: |
+                      npm-${{ env.cache-name }}-
+                      npm-
+
+            # Install npm dependencies
+            - name: 'Install npm dependencies'
+              if: steps.cache-npm.outputs.cache-hit != 'true'
+              run: HUSKY=0 npm ci
+
+            # Format
+            - name: 'Format'
+              run: npm run format:verify
+
+            # Lint
+            - name: 'Lint'
+              run: npm run lint
+
+            # Integration tests
+            - name: 'Integration tests'
+              run: npm run test

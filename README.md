@@ -36,12 +36,14 @@ See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-ap
 ### Configuration and Connection
 
 In v4 and earlier versions of this client:
-- you had to specify configuration in a `.env` file with specific property names.
-- you connect with either the `connect()` or `connectWithAuth()` method depending on the authentication flow.
+
+-   you had to specify configuration in a `.env` file with specific property names.
+-   you connect with either the `connect()` or `connectWithAuth()` method depending on the authentication flow.
 
 In v5:
-- you pass your configuration with an object in the client constructor. The `.env` file is no longer a requirement, you are free to store your configuration where you want.
-- you connect with a unique `connect()` method.
+
+-   you pass your configuration with an object in the client constructor. The `.env` file is no longer a requirement, you are free to store your configuration where you want.
+-   you connect with a unique `connect()` method.
 
 ### Event handling
 
