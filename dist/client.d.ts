@@ -11,7 +11,8 @@ export default class PubSubApiClient {
      */
     constructor(config: Configuration, logger?: Logger);
     /**
-     * Authenticates with Salesforce then, connects to the Pub/Sub API.
+     * Authenticates with Salesforce (if not using user-supplied authentication mode) then,
+     * connects to the Pub/Sub API.
      * @returns {Promise<void>} Promise that resolves once the connection is established
      * @memberof PubSubApiClient.prototype
      */

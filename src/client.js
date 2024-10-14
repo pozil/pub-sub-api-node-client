@@ -174,13 +174,14 @@ export default class PubSubApiClient {
         if (this.#config.authType !== AuthType.USER_SUPPLIED) {
             // Connect to Salesforce to obtain an access token
             try {
-                const auth = new SalesforceAuth(this.#config);
+                const auth = new SalesforceAuth(this.#config, this.#logger);
                 const conMetadata = await auth.authenticate();
                 this.#config.accessToken = conMetadata.accessToken;
                 this.#config.username = conMetadata.username;
                 this.#config.instanceUrl = conMetadata.instanceUrl;
+                this.#config.organizationId = conMetadata.organizationId;
                 this.#logger.info(
-                    `Connected to Salesforce org ${conMetadata.instanceUrl} as ${conMetadata.username}`
+                    `Connected to Salesforce org ${conMetadata.instanceUrl} (${this.#config.organizationId}) as ${conMetadata.username}`
                 );
             } catch (error) {
                 throw new Error('Failed to authenticate with Salesforce', {
@@ -191,6 +192,7 @@ export default class PubSubApiClient {
 
         // Connect to Pub/Sub API
         try {
+            this.#logger.debug(`Connecting to Pub/Sub API`);
             // Read certificates
             const rootCert = fs.readFileSync(certifi);
 
@@ -311,6 +313,9 @@ export default class PubSubApiClient {
      * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
      */
     #subscribe(subscribeRequest, subscribeCallback) {
+        this.#logger.debug(
+            `Preparing subscribe request: ${JSON.stringify(subscribeRequest)}`
+        );
         let { topicName, numRequested } = subscribeRequest;
         try {
             // Check number of requested events
@@ -344,10 +349,21 @@ export default class PubSubApiClient {
 
             // Check for an existing subscription
             let subscription = this.#subscriptions.get(topicName);
-            let grpcSubscription = subscription?.grpcSubscription;
-
-            // Send subscription request
-            if (!subscription) {
+            let grpcSubscription;
+            if (subscription) {
+                // Reuse existing gRPC connection and reset event counters
+                this.#logger.debug(
+                    `${topicName} - Reusing cached gRPC subscription`
+                );
+                grpcSubscription = subscription.grpcSubscription;
+                subscription.info.receivedEventCount = 0;
+                subscription.info.requestedEventCount =
+                    subscribeRequest.numRequested;
+            } else {
+                // Establish new gRPC subscription
+                this.#logger.debug(
+                    `${topicName} - Establishing new gRPC subscription`
+                );
                 grpcSubscription = this.#client.Subscribe();
                 subscription = {
                     info: {
@@ -368,14 +384,17 @@ export default class PubSubApiClient {
                 subscription.info.lastReplayId = latestReplayId;
                 if (data.events) {
                     this.#logger.info(
-                        `Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
+                        `${topicName} - Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
                     );
                     for (const event of data.events) {
                         try {
                             this.#logger.debug(
-                                `Raw event: ${toJsonString(event)}`
+                                `${topicName} - Raw event: ${toJsonString(event)}`
                             );
                             // Load event schema from cache or from the gRPC client
+                            this.#logger.debug(
+                                `${topicName} - Retrieving schema ID: ${event.event.schemaId}`
+                            );
                             const schema = await this.#getEventSchemaFromId(
                                 event.event.schemaId
                             );
@@ -391,7 +410,7 @@ export default class PubSubApiClient {
                             // Parse event thanks to schema
                             const parsedEvent = parseEvent(schema, event);
                             this.#logger.debug(
-                                `Parsed event: ${toJsonString(parseEvent)}`
+                                `${topicName} - Parsed event: ${toJsonString(parsedEvent)}`
                             );
                             subscribeCallback(
                                 subscription.info,
@@ -447,7 +466,7 @@ export default class PubSubApiClient {
                     // If there are no events then, every 270 seconds (or less) the server publishes a keepalive message with
                     // the latestReplayId and pendingNumRequested (the number of events that the client is still waiting for)
                     this.#logger.debug(
-                        `Received keepalive message. Latest replay ID: ${latestReplayId}`
+                        `${topicName} - Received keepalive message. Latest replay ID: ${latestReplayId}`
                     );
                     data.latestReplayId = latestReplayId; // Replace original value with decoded value
                     subscribeCallback(
@@ -458,12 +477,12 @@ export default class PubSubApiClient {
             });
             grpcSubscription.on('end', () => {
                 this.#subscriptions.delete(topicName);
-                this.#logger.info('gRPC stream ended');
+                this.#logger.info(`${topicName} - gRPC stream ended`);
                 subscribeCallback(subscription.info, SubscribeCallbackType.END);
             });
             grpcSubscription.on('error', (error) => {
                 this.#logger.error(
-                    `gRPC stream error: ${JSON.stringify(error)}`
+                    `${topicName} - gRPC stream error: ${JSON.stringify(error)}`
                 );
                 subscribeCallback(
                     subscription.info,
@@ -473,7 +492,7 @@ export default class PubSubApiClient {
             });
             grpcSubscription.on('status', (status) => {
                 this.#logger.info(
-                    `gRPC stream status: ${JSON.stringify(status)}`
+                    `${topicName} - gRPC stream status: ${JSON.stringify(status)}`
                 );
                 subscribeCallback(
                     subscription.info,
@@ -484,7 +503,7 @@ export default class PubSubApiClient {
 
             grpcSubscription.write(subscribeRequest);
             this.#logger.info(
-                `Subscribe request sent for ${numRequested} events from ${topicName}...`
+                `${topicName} - Subscribe request sent for ${numRequested} events`
             );
         } catch (error) {
             throw new Error(
@@ -516,7 +535,7 @@ export default class PubSubApiClient {
             numRequested: numRequested
         });
         this.#logger.debug(
-            `Resubscribing to a batch of ${numRequested} events for: ${topicName}`
+            `${topicName} - Resubscribing to a batch of ${numRequested} events`
         );
     }
 
@@ -530,6 +549,9 @@ export default class PubSubApiClient {
      */
     async publish(topicName, payload, correlationKey) {
         try {
+            this.#logger.debug(
+                `${topicName} - Preparing to publish event: ${toJsonString(payload)}`
+            );
             if (!this.#client) {
                 throw new Error('Pub/Sub API client is not connected.');
             }
@@ -617,6 +639,9 @@ export default class PubSubApiClient {
                     } else {
                         // Get the schema information
                         const { schemaId } = response;
+                        this.#logger.debug(
+                            `${topicName} - Retrieving schema ID: ${schemaId}`
+                        );
                         // Check cache for schema thanks to ID
                         let schema = this.#schemaChache.getFromId(schemaId);
                         if (!schema) {
@@ -626,7 +651,6 @@ export default class PubSubApiClient {
                                     schemaId
                                 );
                         }
-                        this.#logger.info(`Topic schema loaded: ${topicName}`);
                         // Add schema to cache
                         this.#schemaChache.set(schema);
                         resolve(schema);

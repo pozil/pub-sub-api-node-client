@@ -19,11 +19,19 @@ export default class SalesforceAuth {
     #config;
 
     /**
+     * Logger
+     * @type {Logger}
+     */
+    #logger;
+
+    /**
      * Builds a new Pub/Sub API client
      * @param {Configuration} config the client configuration
+     * @param {Logger} logger a logger
      */
-    constructor(config) {
+    constructor(config, logger) {
         this.#config = config;
+        this.#logger = logger;
     }
 
     /**
@@ -31,9 +39,12 @@ export default class SalesforceAuth {
      * @returns {ConnectionMetadata}
      */
     async authenticate() {
+        this.#logger.debug(`Authenticating with ${this.#config.authType} mode`);
         switch (this.#config.authType) {
             case AuthType.USER_SUPPLIED:
-                return null; // No op
+                throw new Error(
+                    'Authenticate method should not be called in user-supplied mode.'
+                );
             case AuthType.USERNAME_PASSWORD:
                 return this.#authWithUsernamePassword();
             case AuthType.OAUTH_CLIENT_CREDENTIALS:

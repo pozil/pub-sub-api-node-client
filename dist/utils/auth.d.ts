@@ -9,8 +9,9 @@ export default class SalesforceAuth {
     /**
      * Builds a new Pub/Sub API client
      * @param {Configuration} config the client configuration
+     * @param {Logger} logger a logger
      */
-    constructor(config: Configuration);
+    constructor(config: Configuration, logger: Logger);
     /**
      * Authenticates with the auth mode specified in configuration
      * @returns {ConnectionMetadata}

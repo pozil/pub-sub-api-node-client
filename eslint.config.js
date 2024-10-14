@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import jasmine from 'eslint-plugin-jasmine';
 import globals from 'globals';
 
 export default [
@@ -10,5 +11,9 @@ export default [
                 ...globals.node
             }
         }
+    },
+    {
+        files: ['spec/**/*.js'],
+        plugins: [jasmine]
     }
 ];

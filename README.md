@@ -4,140 +4,217 @@
 
 See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-api) and the [documentation](https://developer.salesforce.com/docs/platform/pub-sub-api/guide/intro.html) for more information on the Salesforce gRPC-based Pub/Sub API.
 
+-   [v4 to v5 Migration](#v4-to-v5-migration)
+-   [v4 Documentation](v4-documentation.md)
 -   [Installation and Configuration](#installation-and-configuration)
-    -   [User supplied authentication](#user-supplied-authentication)
-    -   [Username/password flow](#usernamepassword-flow)
-    -   [OAuth 2.0 client credentials flow (client_credentials)](#oauth-20-client-credentials-flow-client_credentials)
-    -   [OAuth 2.0 JWT bearer flow](#oauth-20-jwt-bearer-flow)
--   [Basic Example](#basic-example)
+    -   [Authentication](#authentication)
+        -   [User supplied authentication](#user-supplied-authentication)
+        -   [Username/password flow](#usernamepassword-flow)
+        -   [OAuth 2.0 client credentials flow (client_credentials)](#oauth-20-client-credentials-flow-client_credentials)
+        -   [OAuth 2.0 JWT bearer flow](#oauth-20-jwt-bearer-flow)
+    -   [Logging](#logging)
+-   [Quick Start Example](#quick-start-example)
 -   [Other Examples](#other-examples)
     -   [Publish a platform event](#publish-a-platform-event)
     -   [Subscribe with a replay ID](#subscribe-with-a-replay-id)
     -   [Subscribe to past events in retention window](#subscribe-to-past-events-in-retention-window)
     -   [Work with flow control for high volumes of events](#work-with-flow-control-for-high-volumes-of-events)
     -   [Handle gRPC stream lifecycle events](#handle-grpc-stream-lifecycle-events)
-    -   [Use a custom logger](#use-a-custom-logger)
 -   [Common Issues](#common-issues)
 -   [Reference](#reference)
     -   [PubSubApiClient](#pubsubapiclient)
-    -   [PubSubEventEmitter](#pubsubeventemitter)
+    -   [SubscribeCallback](#subscribecallback)
+    -   [SubscriptionInfo](#subscriptioninfo)
     -   [EventParseError](#eventparseerror)
+    -   [Configuration](#configuration)
+
+## v4 to v5 Migration
+
+> [!WARNING]
+> Version 5 of the Pub/Sub API client introduces a couple of breaking changes which require a small migration effort. Read this section for an overview of the changes.
+
+### Configuration and Connection
+
+In v4 and earlier versions of this client:
+- you had to specify configuration in a `.env` file with specific property names.
+- you connect with either the `connect()` or `connectWithAuth()` method depending on the authentication flow.
+
+In v5:
+- you pass your configuration with an object in the client constructor. The `.env` file is no longer a requirement, you are free to store your configuration where you want.
+- you connect with a unique `connect()` method.
+
+### Event handling
+
+In v4 and earlier versions of this client you used an asynchronous `EventEmitter` to receive updates such as incoming messages or lifecycle events.
+
+In v5, you use a synchronous callback function to receive the same information. This helps to ensure that events are received in the right order.
 
 ## Installation and Configuration
 
 Install the client library with `npm install salesforce-pubsub-api-client`.
 
-Create a `.env` file at the root of the project for configuration.
+### Authentication
 
-Pick one of these authentication flows and fill the relevant configuration:
+Pick one of these authentication flows and pass the relevant configuration to the `PubSubApiClient` constructor:
 
--   User supplied authentication
--   Username/password authentication (recommended for tests)
--   OAuth 2.0 client credentials
--   OAuth 2.0 JWT Bearer (recommended for production)
+-   [User supplied authentication](#user-supplied-authentication)
+-   [Username/password flow](#usernamepassword-flow) (recommended for tests)
+-   [OAuth 2.0 client flow](#oauth-20-client-credentials-flow-client_credentials)
+-   [OAuth 2.0 JWT Bearer flow](#oauth-20-jwt-bearer-flow) (recommended for production)
 
-> [!TIP]
-> The default client logger is fine for a test environment but you'll want to switch to a [custom logger](#use-a-custom-logger) with asynchronous logging for increased performance.
+#### User supplied authentication
 
-### User supplied authentication
-
-If you already have a Salesforce client in your app, you can reuse its authentication information. You only need this minimal configuration:
-
-```properties
-SALESFORCE_AUTH_TYPE=user-supplied
-
-PUB_SUB_ENDPOINT=api.pubsub.salesforce.com:7443
-```
-
-When connecting to the Pub/Sub API, use the following method instead of the standard `connect()` method to specify authentication information:
+If you already have a Salesforce client in your app, you can reuse its authentication information.
+In the example below, we assume that `sfConnection` is a connection obtained with [jsforce](https://jsforce.github.io/)
 
 ```js
-await client.connectWithAuth(accessToken, instanceUrl, organizationId);
+const client = new PubSubApiClient({
+    authType: 'user-supplied',
+    accessToken: sfConnection.accessToken,
+    instanceUrl: sfConnection.instanceUrl,
+    organizationId: sfConnection.userInfo.organizationId
+});
 ```
 
-### Username/password flow
+#### Username/password flow
 
 > [!WARNING]
 > Relying on a username/password authentication flow for production is not recommended. Consider switching to JWT auth for extra security.
 
-```properties
-SALESFORCE_AUTH_TYPE=username-password
-SALESFORCE_LOGIN_URL=https://login.salesforce.com
-SALESFORCE_USERNAME=YOUR_SALESFORCE_USERNAME
-SALESFORCE_PASSWORD=YOUR_SALESFORCE_PASSWORD
-SALESFORCE_TOKEN=YOUR_SALESFORCE_USER_SECURITY_TOKEN
-
-PUB_SUB_ENDPOINT=api.pubsub.salesforce.com:7443
+```js
+const client = new PubSubApiClient({
+    authType: 'username-password',
+    loginUrl: process.env.SALESFORCE_LOGIN_URL,
+    username: process.env.SALESFORCE_USERNAME,
+    password: process.env.SALESFORCE_PASSWORD,
+    userToken: process.env.SALESFORCE_TOKEN
+});
 ```
 
-### OAuth 2.0 client credentials flow (client_credentials)
+#### OAuth 2.0 client credentials flow (client_credentials)
 
-```properties
-SALESFORCE_AUTH_TYPE=oauth-client-credentials
-SALESFORCE_LOGIN_URL=YOUR_DOMAIN_URL
-SALESFORCE_CLIENT_ID=YOUR_CONNECTED_APP_CLIENT_ID
-SALESFORCE_CLIENT_SECRET=YOUR_CONNECTED_APP_CLIENT_SECRET
-
-PUB_SUB_ENDPOINT=api.pubsub.salesforce.com:7443
+```js
+const client = new PubSubApiClient({
+    authType: 'oauth-client-credentials',
+    loginUrl: process.env.SALESFORCE_LOGIN_URL,
+    clientId: process.env.SALESFORCE_CLIENT_ID,
+    clientSecret: process.env.SALESFORCE_CLIENT_SECRET
+});
 ```
 
-### OAuth 2.0 JWT bearer flow
+#### OAuth 2.0 JWT bearer flow
 
 This is the most secure authentication option. Recommended for production use.
 
-```properties
-SALESFORCE_AUTH_TYPE=oauth-jwt-bearer
-SALESFORCE_LOGIN_URL=https://login.salesforce.com
-SALESFORCE_CLIENT_ID=YOUR_CONNECTED_APP_CLIENT_ID
-SALESFORCE_USERNAME=YOUR_SALESFORCE_USERNAME
-SALESFORCE_PRIVATE_KEY_FILE=PATH_TO_YOUR_KEY_FILE
+```js
+// Read private key file
+const privateKey = fs.readFileSync(process.env.SALESFORCE_PRIVATE_KEY_FILE);
 
-PUB_SUB_ENDPOINT=api.pubsub.salesforce.com:7443
+// Build PubSub client
+const client = new PubSubApiClient({
+    authType: 'oauth-jwt-bearer',
+    loginUrl: process.env.SALESFORCE_JWT_LOGIN_URL,
+    clientId: process.env.SALESFORCE_JWT_CLIENT_ID,
+    username: process.env.SALESFORCE_USERNAME,
+    privateKey
+});
 ```
 
-## Basic Example
+### Logging
 
-Here's an example that will get you started quickly. It listens to a single account change event.
+The client uses debug level messages so you can lower the default logging level if you need more information.
+
+The documentation examples use the default client logger (the console). The console is fine for a test environment but you'll want to switch to a custom logger with asynchronous logging for increased performance.
+
+You can pass a logger like pino in the client constructor:
+
+```js
+import pino from 'pino';
+
+const config = {
+    /* your config goes here */
+};
+const logger = pino();
+const client = new PubSubApiClient(config, logger);
+```
+
+## Quick Start Example
+
+Here's an example that will get you started quickly. It listens to up to 3 account change events. Once the third event is reached, the client closes gracefully.
 
 1.  Activate Account change events in **Salesforce Setup > Change Data Capture**.
 
-1.  Create a `sample.js` file with this content:
+1.  Install the client and `dotenv` in your project:
+
+    ```sh
+    npm install salesforce-pubsub-api-client dotenv
+    ```
+
+1.  Create a `.env` file at the root of the project and replace the values:
+
+    ```properties
+    SALESFORCE_LOGIN_URL=...
+    SALESFORCE_USERNAME=...
+    SALESFORCE_PASSWORD=...
+    SALESFORCE_TOKEN=...
+    ```
+
+1.  Create a `sample.js` file with the following content:
 
     ```js
+    import * as dotenv from 'dotenv';
     import PubSubApiClient from 'salesforce-pubsub-api-client';
 
     async function run() {
         try {
-            const client = new PubSubApiClient();
+            // Load config from .env file
+            dotenv.config();
+
+            // Build and connect Pub/Sub API client
+            const client = new PubSubApiClient({
+                authType: 'username-password',
+                loginUrl: process.env.SALESFORCE_LOGIN_URL,
+                username: process.env.SALESFORCE_USERNAME,
+                password: process.env.SALESFORCE_PASSWORD,
+                userToken: process.env.SALESFORCE_TOKEN
+            });
             await client.connect();
 
-            // Subscribe to account change events
-            const eventEmitter = await client.subscribe(
-                '/data/AccountChangeEvent'
-            );
+            // Prepare event callback
+            const subscribeCallback = (subscription, callbackType, data) => {
+                if (callbackType === 'event') {
+                    // Event received
+                    console.log(
+                        `${subscription.topicName} - ``Handling ${event.payload.ChangeEventHeader.entityName} change event ` +
+                            `with ID ${event.replayId} ` +
+                            `(${subscription.receivedEventCount}/${subscription.requestedEventCount} ` +
+                            `events received so far)`
+                    );
+                    // Safely log event payload as a JSON string
+                    console.log(
+                        JSON.stringify(
+                            event,
+                            (key, value) =>
+                                /* Convert BigInt values into strings and keep other types unchanged */
+                                typeof value === 'bigint'
+                                    ? value.toString()
+                                    : value,
+                            2
+                        )
+                    );
+                } else if (callbackType === 'lastEvent') {
+                    // Last event received
+                    console.log(
+                        `${subscription.topicName} - Reached last of ${subscription.requestedEventCount} requested event on channel. Closing connection.`
+                    );
+                } else if (callbackType === 'end') {
+                    // Client closed the connection
+                    console.log('Client shut down gracefully.');
+                }
+            };
 
-            // Handle incoming events
-            eventEmitter.on('data', (event) => {
-                console.log(
-                    `Handling ${event.payload.ChangeEventHeader.entityName} change event ` +
-                        `with ID ${event.replayId} ` +
-                        `on channel ${eventEmitter.getTopicName()} ` +
-                        `(${eventEmitter.getReceivedEventCount()}/${eventEmitter.getRequestedEventCount()} ` +
-                        `events received so far)`
-                );
-                // Safely log event as a JSON string
-                console.log(
-                    JSON.stringify(
-                        event,
-                        (key, value) =>
-                            /* Convert BigInt values into strings and keep other types unchanged */
-                            typeof value === 'bigint'
-                                ? value.toString()
-                                : value,
-                        2
-                    )
-                );
-            });
+            // Subscribe to 3 account change event
+            client.subscribe('/data/AccountChangeEvent', subscribeCallback, 3);
         } catch (error) {
             console.error(error);
         }
@@ -151,21 +228,20 @@ Here's an example that will get you started quickly. It listens to a single acco
     If everything goes well, you'll see output like this:
 
     ```
-    Connected to Salesforce org https://pozil-dev-ed.my.salesforce.com as grpc@pozil.com
+    Connected to Salesforce org https://pozil-dev-ed.my.salesforce.com (00D58000000arpqEAA) as grpc@pozil.com
     Connected to Pub/Sub API endpoint api.pubsub.salesforce.com:7443
-    Topic schema loaded: /data/AccountChangeEvent
-    Subscribe request sent for 100 events from /data/AccountChangeEvent...
+    /data/AccountChangeEvent - Subscribe request sent for 3 events
     ```
 
-    At this point the script will be on hold and will wait for events.
+    At this point, the script is on hold and waits for events.
 
 1.  Modify an account record in Salesforce. This fires an account change event.
 
-    Once the client receives an event, it will display it like this:
+    Once the client receives an event, it displays it like this:
 
     ```
-    Received 1 events, latest replay ID: 18098167
-    Handling Account change event with ID 18098167 on channel /data/AccountChangeEvent (1/100 events received so far)
+    /data/AccountChangeEvent - Received 1 events, latest replay ID: 18098167
+    /data/AccountChangeEvent - Handling Account change event with ID 18098167 (1/3 events received so far)
     {
         "replayId": 18098167,
         "payload": {
@@ -264,8 +340,9 @@ console.log('Published event: ', JSON.stringify(publishResult));
 Subscribe to 5 account change events starting from a replay ID:
 
 ```js
-const eventEmitter = await client.subscribeFromReplayId(
+await client.subscribeFromReplayId(
     '/data/AccountChangeEvent',
+    subscribeCallback,
     5,
     17092989
 );
@@ -273,11 +350,12 @@ const eventEmitter = await client.subscribeFromReplayId(
 
 ### Subscribe to past events in retention window
 
-Subscribe to the 3 earliest past account change events in retention window:
+Subscribe to the 3 earliest past account change events in the retention window:
 
 ```js
-const eventEmitter = await client.subscribeFromEarliestEvent(
+await client.subscribeFromEarliestEvent(
     '/data/AccountChangeEvent',
+    subscribeCallback,
     3
 );
 ```
@@ -289,7 +367,7 @@ When working with high volumes of events you can control the incoming flow of ev
 This is the overall process:
 
 1. Pass a number of requested events in your subscribe call.
-1. Handle the `lastevent` event from `PubSubEventEmitter` to detect the end of the event batch.
+1. Handle the `lastevent` callback type from subscribe callback to detect the end of the event batch.
 1. Subscribe to an additional batch of events with `client.requestAdditionalEvents(...)`. If you don't request additional events at this point, the gRPC subscription will close automatically (default Pub/Sub API behavior).
 
 The code below illustrate how you can achieve event flow control:
@@ -297,27 +375,30 @@ The code below illustrate how you can achieve event flow control:
 ```js
 try {
     // Connect with the Pub/Sub API
-    const client = new PubSubApiClient();
+    const client = new PubSubApiClient(/* config goes here */);
     await client.connect();
 
+    // Prepare event callback
+    const subscribeCallback = (subscription, callbackType, data) => {
+        if (callbackType === 'event') {
+            // Logic for handling a single event.
+            // Unless you request additional events later, this should get called up to 10 times
+            // given the initial subscription boundary.
+        } else if (callbackType === 'lastEvent') {
+            // Last event received
+            console.log(
+                `${eventEmitter.getTopicName()} - Reached last requested event on channel.`
+            );
+            // Request 10 additional events
+            client.requestAdditionalEvents(eventEmitter, 10);
+        } else if (callbackType === 'end') {
+            // Client closed the connection
+            console.log('Client shut down gracefully.');
+        }
+    };
+
     // Subscribe to a batch of 10 account change event
-    const eventEmitter = await client.subscribe('/data/AccountChangeEvent', 10);
-
-    // Handle incoming events
-    eventEmitter.on('data', (event) => {
-        // Logic for handling a single event.
-        // Unless you request additional events later, this should get called up to 10 times
-        // given the initial subscription boundary.
-    });
-
-    // Handle last requested event
-    eventEmitter.on('lastevent', () => {
-        console.log(
-            `Reached last requested event on channel ${eventEmitter.getTopicName()}.`
-        );
-        // Request 10 additional events
-        client.requestAdditionalEvents(eventEmitter, 10);
-    });
+    await client.subscribe('/data/AccountChangeEvent', subscribeCallback 10);
 } catch (error) {
     console.error(error);
 }
@@ -325,38 +406,21 @@ try {
 
 ### Handle gRPC stream lifecycle events
 
-Use the `EventEmmitter` returned by subscribe methods to handle gRPC stream lifecycle events:
+Use callback types from subscribe callback to handle gRPC stream lifecycle events:
 
 ```js
-// Stream end
-eventEmitter.on('end', () => {
-    console.log('gRPC stream ended');
-});
-
-// Stream error
-eventEmitter.on('error', (error) => {
-    console.error('gRPC stream error: ', JSON.stringify(error));
-});
-
-// Stream status update
-eventEmitter.on('status', (status) => {
-    console.log('gRPC stream status: ', status);
-});
-```
-
-### Use a custom logger
-
-The client logs output to the console by default but you can provide your favorite logger in the client constructor.
-
-When in production, asynchronous logging is preferable for performance reasons.
-
-For example:
-
-```js
-import pino from 'pino';
-
-const logger = pino();
-const client = new PubSubApiClient(logger);
+const subscribeCallback = (subscription, callbackType, data) => {
+    if (callbackType === 'grpcStatus') {
+        // Stream status update
+        console.log('gRPC stream status: ', status);
+    } else if (callbackType === 'error') {
+        // Stream error
+        console.error('gRPC stream error: ', JSON.stringify(error));
+    } else if (callbackType === 'end') {
+        // Stream end
+        console.log('gRPC stream ended');
+    }
+};
 ```
 
 ## Common Issues
@@ -390,13 +454,14 @@ console.log(
 
 Client for the Salesforce Pub/Sub API
 
-#### `PubSubApiClient([logger])`
+#### `PubSubApiClient(configuration, [logger])`
 
 Builds a new Pub/Sub API client.
 
-| Name     | Type   | Description                                                                     |
-| -------- | ------ | ------------------------------------------------------------------------------- |
-| `logger` | Logger | an optional custom logger. The client uses the console if no value is supplied. |
+| Name            | Type                            | Description                                                                     |
+| --------------- | ------------------------------- | ------------------------------------------------------------------------------- |
+| `configuration` | [Configuration](#configuration) | The client configuration (authentication...).                                   |
+| `logger`        | Logger                          | An optional custom logger. The client uses the console if no value is supplied. |
 
 #### `close()`
 
@@ -404,29 +469,17 @@ Closes the gRPC connection. The client will no longer receive events for any top
 
 #### `async connect() → {Promise.<void>}`
 
-Authenticates with Salesforce then, connects to the Pub/Sub API.
+Authenticates with Salesforce then connects to the Pub/Sub API.
 
 Returns: Promise that resolves once the connection is established.
-
-#### `async connectWithAuth(accessToken, instanceUrl, organizationIdopt) → {Promise.<void>}`
-
-Connects to the Pub/Sub API with user-supplied authentication.
-
-Returns: Promise that resolves once the connection is established.
-
-| Name             | Type   | Description                                                                                         |
-| ---------------- | ------ | --------------------------------------------------------------------------------------------------- |
-| `accessToken`    | string | Salesforce access token                                                                             |
-| `instanceUrl`    | string | Salesforce instance URL                                                                             |
-| `organizationId` | string | optional organization ID. If you don't provide one, we'll attempt to parse it from the accessToken. |
 
 #### `async getConnectivityState() → Promise<connectivityState>}`
 
 Get connectivity state from current channel.
 
-Returns: Promise that holds channel's [connectivity state](https://grpc.github.io/grpc/node/grpc.html#.connectivityState).
+Returns: Promise that holds the channel's [connectivity state](https://grpc.github.io/grpc/node/grpc.html#.connectivityState).
 
-#### `async publish(topicName, payload, correlationKeyopt) → {Promise.<PublishResult>}`
+#### `async publish(topicName, payload, [correlationKey]) → {Promise.<PublishResult>}`
 
 Publishes a payload to a topic using the gRPC client.
 
@@ -438,72 +491,79 @@ Returns: Promise holding a `PublishResult` object with `replayId` and `correlati
 | `payload`        | Object |                                                                                           |
 | `correlationKey` | string | optional correlation key. If you don't provide one, we'll generate a random UUID for you. |
 
-#### `async subscribe(topicName, [numRequested]) → {Promise.<PubSubEventEmitter>}`
+#### `async subscribe(topicName, subscribeCallback, [numRequested])`
 
 Subscribes to a topic.
 
-Returns: Promise that holds an `PubSubEventEmitter` that allows you to listen to received events and stream lifecycle events.
+| Name                | Type                                    | Description                                                                                                    |
+| ------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `topicName`         | string                                  | name of the topic that we're subscribing to                                                                    |
+| `subscribeCallback` | [SubscribeCallback](#subscribecallback) | subscribe callback function                                                                                    |
+| `numRequested`      | number                                  | optional number of events requested. If not supplied or null, the client keeps the subscription alive forever. |
 
-| Name           | Type   | Description                                                                                                    |
-| -------------- | ------ | -------------------------------------------------------------------------------------------------------------- |
-| `topicName`    | string | name of the topic that we're subscribing to                                                                    |
-| `numRequested` | number | optional number of events requested. If not supplied or null, the client keeps the subscription alive forever. |
-
-#### `async subscribeFromEarliestEvent(topicName, [numRequested]) → {Promise.<PubSubEventEmitter>}`
+#### `async subscribeFromEarliestEvent(topicName, subscribeCallback, [numRequested])`
 
 Subscribes to a topic and retrieves all past events in retention window.
 
-Returns: Promise that holds an `PubSubEventEmitter` that allows you to listen to received events and stream lifecycle events.
+| Name                | Type                                    | Description                                                                                                    |
+| ------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `topicName`         | string                                  | name of the topic that we're subscribing to                                                                    |
+| `subscribeCallback` | [SubscribeCallback](#subscribecallback) | subscribe callback function                                                                                    |
+| `numRequested`      | number                                  | optional number of events requested. If not supplied or null, the client keeps the subscription alive forever. |
 
-| Name           | Type   | Description                                                                                                    |
-| -------------- | ------ | -------------------------------------------------------------------------------------------------------------- |
-| `topicName`    | string | name of the topic that we're subscribing to                                                                    |
-| `numRequested` | number | optional number of events requested. If not supplied or null, the client keeps the subscription alive forever. |
-
-#### `async subscribeFromReplayId(topicName, numRequested, replayId) → {Promise.<PubSubEventEmitter>}`
+#### `async subscribeFromReplayId(topicName, subscribeCallback, numRequested, replayId)`
 
 Subscribes to a topic and retrieves past events starting from a replay ID.
 
-Returns: Promise that holds an `PubSubEventEmitter` that allows you to listen to received events and stream lifecycle events.
+| Name                | Type                                    | Description                                                                             |
+| ------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
+| `topicName`         | string                                  | name of the topic that we're subscribing to                                             |
+| `subscribeCallback` | [SubscribeCallback](#subscribecallback) | subscribe callback function                                                             |
+| `numRequested`      | number                                  | number of events requested. If `null`, the client keeps the subscription alive forever. |
+| `replayId`          | number                                  | replay ID                                                                               |
 
-| Name           | Type   | Description                                                                             |
-| -------------- | ------ | --------------------------------------------------------------------------------------- |
-| `topicName`    | string | name of the topic that we're subscribing to                                             |
-| `numRequested` | number | number of events requested. If `null`, the client keeps the subscription alive forever. |
-| `replayId`     | number | replay ID                                                                               |
-
-#### `requestAdditionalEvents(eventEmitter, numRequested)`
+#### `requestAdditionalEvents(topicName, numRequested)`
 
 Request additional events on an existing subscription.
 
-| Name           | Type               | Description                                                 |
-| -------------- | ------------------ | ----------------------------------------------------------- |
-| `eventEmitter` | PubSubEventEmitter | event emitter that was obtained in the first subscribe call |
-| `numRequested` | number             | number of events requested.                                 |
+| Name           | Type   | Description                 |
+| -------------- | ------ | --------------------------- |
+| `topicName`    | string | name of the topic.          |
+| `numRequested` | number | number of events requested. |
 
-### PubSubEventEmitter
+### SubscribeCallback
 
-EventEmitter wrapper for processing incoming Pub/Sub API events while keeping track of the topic name and the volume of events requested/received.
+Callback function that lets you process incoming Pub/Sub API events while keeping track of the topic name and the volume of events requested/received.
 
-The emitter sends the following events:
+The function takes three parameters:
 
-| Event Name  | Event Data                                                | Description                                                                                     |
-| ----------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `data`      | Object                                                    | Client received a new event. The attached data is the parsed event data.                        |
-| `error`     | `EventParseError \| Object`                               | Signals an event parsing error or a gRPC stream error.                                          |
-| `lastevent` | void                                                      | Signals that we received the last event that the client requested. The stream will end shortly. |
-| `keepalive` | `{ latestReplayId: number, pendingNumRequested: number }` | Server publishes this keep alive message every 270 seconds (or less) if there are no events.    |
-| `end`       | void                                                      | Signals the end of the gRPC stream.                                                             |
-| `status`    | Object                                                    | Misc gRPC stream status information.                                                            |
+| Name           | Type                                  | Description                                                           |
+| -------------- | ------------------------------------- | --------------------------------------------------------------------- |
+| `subscription` | [SubscriptionInfo](#subscriptioninfo) | subscription information                                              |
+| `callbackType` | string                                | name of the callback type (see table below).                          |
+| `data`         | [Object]                              | data that is passed with the callback (depends on the callback type). |
 
-The emitter also exposes these methods:
+Callback types:
 
-| Method                     | Description                                                                                |
-| -------------------------- | ------------------------------------------------------------------------------------------ |
-| `getRequestedEventCount()` | Returns the number of events that were requested when subscribing.                         |
-| `getReceivedEventCount()`  | Returns the number of events that were received since subscribing.                         |
-| `getTopicName()`           | Returns the topic name for this subscription.                                              |
-| `getLatestReplayId()`      | Returns the replay ID of the last processed event or `null` if no event was processed yet. |
+| Name            | Callback Data                                             | Description                                                                                       |
+| --------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `data`          | Object                                                    | Client received a new event. The attached data is the parsed event data.                          |
+| `error`         | [EventParseError](#eventparseerror) or Object             | Signals an event parsing error or a gRPC stream error.                                            |
+| `lastevent`     | void                                                      | Signals that we received the last event that the client requested. The stream will end shortly.   |
+| `end`           | void                                                      | Signals the end of the gRPC stream.                                                               |
+| `grpcKeepalive` | `{ latestReplayId: number, pendingNumRequested: number }` | Server publishes this gRPC keep alive message every 270 seconds (or less) if there are no events. |
+| `grpcStatus`    | Object                                                    | Misc gRPC stream status information.                                                              |
+
+### SubscriptionInfo
+
+Holds the information related to a subscription.
+
+| Name                  | Type   | Description                                                                    |
+| --------------------- | ------ | ------------------------------------------------------------------------------ |
+| `topicName`           | string | topic name for this subscription.                                              |
+| `requestedEventCount` | number | number of events that were requested when subscribing.                         |
+| `receivedEventCount`  | number | the number of events that were received since subscribing.                     |
+| `lastReplayId`        | number | replay ID of the last processed event or `null` if no event was processed yet. |
 
 ### EventParseError
 
@@ -516,3 +576,22 @@ Holds the information related to an event parsing error. This class attempts to 
 | `replayId`       | number | The replay ID of the event at the origin of the error. Could be undefined if we're not able to extract it from the event data. |
 | `event`          | Object | The un-parsed event data at the origin of the error.                                                                           |
 | `latestReplayId` | number | The latest replay ID that was received before the error.                                                                       |
+
+### Configuration
+
+Check out the [authentication](#authentication) section for more information on how to provide the right values.
+
+| Name             | Type   | Description                                                                                                               |
+| ---------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `authType`       | string | Authentication type. One of `user-supplied`, `username-password`, `oauth-client-credentials` or `oauth-jwt-bearer`.       |
+| `pubSubEndpoint` | string | A custom Pub/Sub API endpoint. The default endpoint `api.pubsub.salesforce.com:7443` is used if none is supplied.         |
+| `accessToken`    | string | Salesforce access token.                                                                                                  |
+| `instanceUrl`    | string | Salesforce instance URL.                                                                                                  |
+| `organizationId` | string | Optional organization ID. If you don't provide one, we'll attempt to parse it from the accessToken.                       |
+| `loginUrl`       | string | Salesforce login host. One of `https://login.salesforce.com`, `https://test.salesforce.com` or your domain specific host. |
+| `clientId`       | string | Connected app client ID.                                                                                                  |
+| `clientSecret`   | string | Connected app client secret.                                                                                              |
+| `privateKey`     | string | Private key content.                                                                                                      |
+| `username`       | string | Salesforce username.                                                                                                      |
+| `password`       | string | Salesforce user password.                                                                                                 |
+| `userToken`      | string | Salesforce user security token.                                                                                           |

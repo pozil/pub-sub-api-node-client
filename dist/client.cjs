@@ -48,14 +48,8 @@ var SchemaCache = class {
    * @type {Map<string,Schema>}
    */
   #schemaChache;
-  /**
-   * Map of schemas IDs indexed by topic name
-   * @type {Map<string,string>}
-   */
-  #topicNameCache;
   constructor() {
     this.#schemaChache = /* @__PURE__ */ new Map();
-    this.#topicNameCache = /* @__PURE__ */ new Map();
   }
   /**
    * Retrieves a schema based on its ID
@@ -66,43 +60,11 @@ var SchemaCache = class {
     return this.#schemaChache.get(schemaId);
   }
   /**
-   * Retrieves a schema based on a topic name
-   * @param {string} topicName
-   * @returns {Schema} schema or undefined if not found
-   */
-  getFromTopicName(topicName) {
-    const schemaId = this.#topicNameCache.get(topicName);
-    if (schemaId) {
-      return this.getFromId(schemaId);
-    }
-    return void 0;
-  }
-  /**
    * Caches a schema
    * @param {Schema} schema
    */
   set(schema) {
     this.#schemaChache.set(schema.id, schema);
-  }
-  /**
-   * Caches a schema with a topic name
-   * @param {string} topicName
-   * @param {Schema} schema
-   */
-  setWithTopicName(topicName, schema) {
-    this.#topicNameCache.set(topicName, schema.id);
-    this.set(schema);
-  }
-  /**
-   * Delete a schema based on the topic name
-   * @param {string} topicName
-   */
-  deleteWithTopicName(topicName) {
-    const schemaId = this.#topicNameCache.get(topicName);
-    if (schemaId) {
-      this.#schemaChache.delete(schemaId);
-    }
-    this.#topicNameCache.delete(topicName);
   }
 };
 
@@ -386,6 +348,15 @@ function encodeReplayId(replayId) {
   buf.writeBigUInt64BE(BigInt(replayId), 0);
   return buf;
 }
+function toJsonString(event) {
+  return JSON.stringify(
+    event,
+    (key, value) => (
+      /* Convert BigInt values into strings and keep other types unchanged */
+      typeof value === "bigint" ? value.toString() : value
+    )
+  );
+}
 function hexToBin(hex) {
   let bin = hex.substring(2);
   bin = bin.replaceAll("0", "0000");
@@ -418,20 +389,30 @@ var SalesforceAuth = class {
    */
   #config;
   /**
+   * Logger
+   * @type {Logger}
+   */
+  #logger;
+  /**
    * Builds a new Pub/Sub API client
    * @param {Configuration} config the client configuration
+   * @param {Logger} logger a logger
    */
-  constructor(config) {
+  constructor(config, logger) {
     this.#config = config;
+    this.#logger = logger;
   }
   /**
    * Authenticates with the auth mode specified in configuration
    * @returns {ConnectionMetadata}
    */
   async authenticate() {
+    this.#logger.debug(`Authenticating with ${this.#config.authType} mode`);
     switch (this.#config.authType) {
       case AuthType.USER_SUPPLIED:
-        return null;
+        throw new Error(
+          "Authenticate method should not be called in user-supplied mode."
+        );
       case AuthType.USERNAME_PASSWORD:
         return this.#authWithUsernamePassword();
       case AuthType.OAUTH_CLIENT_CREDENTIALS:
@@ -594,20 +575,22 @@ var PubSubApiClient = class {
     }
   }
   /**
-   * Authenticates with Salesforce then, connects to the Pub/Sub API.
+   * Authenticates with Salesforce (if not using user-supplied authentication mode) then,
+   * connects to the Pub/Sub API.
    * @returns {Promise<void>} Promise that resolves once the connection is established
    * @memberof PubSubApiClient.prototype
    */
   async connect() {
     if (this.#config.authType !== AuthType.USER_SUPPLIED) {
       try {
-        const auth = new SalesforceAuth(this.#config);
+        const auth = new SalesforceAuth(this.#config, this.#logger);
         const conMetadata = await auth.authenticate();
         this.#config.accessToken = conMetadata.accessToken;
         this.#config.username = conMetadata.username;
         this.#config.instanceUrl = conMetadata.instanceUrl;
+        this.#config.organizationId = conMetadata.organizationId;
         this.#logger.info(
-          `Connected to Salesforce org ${conMetadata.instanceUrl} as ${conMetadata.username}`
+          `Connected to Salesforce org ${conMetadata.instanceUrl} (${this.#config.organizationId}) as ${conMetadata.username}`
         );
       } catch (error) {
         throw new Error("Failed to authenticate with Salesforce", {
@@ -616,9 +599,10 @@ var PubSubApiClient = class {
       }
     }
     try {
+      this.#logger.debug(`Connecting to Pub/Sub API`);
       const rootCert = import_fs.default.readFileSync(import_certifi.default);
       const protoFilePath = (0, import_url.fileURLToPath)(
-        new URL("./pubsub_api-be352429.proto?hash=be352429", "file://" + __filename)
+        new URL("./pubsub_api-07e1f84a.proto?hash=07e1f84a", "file://" + __filename)
       );
       const packageDef = import_proto_loader.default.loadSync(protoFilePath, {});
       const grpcObj = import_grpc_js.default.loadPackageDefinition(packageDef);
@@ -714,6 +698,9 @@ var PubSubApiClient = class {
    * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
    */
   #subscribe(subscribeRequest, subscribeCallback) {
+    this.#logger.debug(
+      `Preparing subscribe request: ${JSON.stringify(subscribeRequest)}`
+    );
     let { topicName, numRequested } = subscribeRequest;
     try {
       let isInfiniteEventRequest = false;
@@ -742,8 +729,18 @@ var PubSubApiClient = class {
         throw new Error("Pub/Sub API client is not connected.");
       }
       let subscription = this.#subscriptions.get(topicName);
-      let grpcSubscription = subscription?.grpcSubscription;
-      if (!subscription) {
+      let grpcSubscription;
+      if (subscription) {
+        this.#logger.debug(
+          `${topicName} - Reusing cached gRPC subscription`
+        );
+        grpcSubscription = subscription.grpcSubscription;
+        subscription.info.receivedEventCount = 0;
+        subscription.info.requestedEventCount = subscribeRequest.numRequested;
+      } else {
+        this.#logger.debug(
+          `${topicName} - Establishing new gRPC subscription`
+        );
         grpcSubscription = this.#client.Subscribe();
         subscription = {
           info: {
@@ -762,32 +759,19 @@ var PubSubApiClient = class {
         subscription.info.lastReplayId = latestReplayId;
         if (data.events) {
           this.#logger.info(
-            `Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
+            `${topicName} - Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
           );
-          this.#logger.info(JSON.stringify(data.events));
           for (const event of data.events) {
             try {
-              let schema;
-              if (topicName.endsWith("__chn")) {
-                schema = await this.#getEventSchemaFromId(
-                  event.event.schemaId
-                );
-              } else {
-                schema = await this.#getEventSchemaFromTopicName(
-                  topicName
-                );
-                if (schema.id !== event.event.schemaId) {
-                  this.#logger.info(
-                    `Event schema changed (${schema.id} != ${event.event.schemaId}), reloading: ${topicName}`
-                  );
-                  this.#schemaChache.deleteWithTopicName(
-                    topicName
-                  );
-                  schema = await this.#getEventSchemaFromTopicName(
-                    topicName
-                  );
-                }
-              }
+              this.#logger.debug(
+                `${topicName} - Raw event: ${toJsonString(event)}`
+              );
+              this.#logger.debug(
+                `${topicName} - Retrieving schema ID: ${event.event.schemaId}`
+              );
+              const schema = await this.#getEventSchemaFromId(
+                event.event.schemaId
+              );
               const subscription2 = this.#subscriptions.get(topicName);
               if (!subscription2) {
                 throw new Error(
@@ -796,7 +780,9 @@ var PubSubApiClient = class {
               }
               subscription2.info.receivedEventCount++;
               const parsedEvent = parseEvent(schema, event);
-              this.#logger.debug(parsedEvent);
+              this.#logger.debug(
+                `${topicName} - Parsed event: ${toJsonString(parsedEvent)}`
+              );
               subscribeCallback(
                 subscription2.info,
                 SubscribeCallbackType.EVENT,
@@ -839,7 +825,7 @@ var PubSubApiClient = class {
           }
         } else {
           this.#logger.debug(
-            `Received keepalive message. Latest replay ID: ${latestReplayId}`
+            `${topicName} - Received keepalive message. Latest replay ID: ${latestReplayId}`
           );
           data.latestReplayId = latestReplayId;
           subscribeCallback(
@@ -850,12 +836,12 @@ var PubSubApiClient = class {
       });
       grpcSubscription.on("end", () => {
         this.#subscriptions.delete(topicName);
-        this.#logger.info("gRPC stream ended");
+        this.#logger.info(`${topicName} - gRPC stream ended`);
         subscribeCallback(subscription.info, SubscribeCallbackType.END);
       });
       grpcSubscription.on("error", (error) => {
         this.#logger.error(
-          `gRPC stream error: ${JSON.stringify(error)}`
+          `${topicName} - gRPC stream error: ${JSON.stringify(error)}`
         );
         subscribeCallback(
           subscription.info,
@@ -865,7 +851,7 @@ var PubSubApiClient = class {
       });
       grpcSubscription.on("status", (status) => {
         this.#logger.info(
-          `gRPC stream status: ${JSON.stringify(status)}`
+          `${topicName} - gRPC stream status: ${JSON.stringify(status)}`
         );
         subscribeCallback(
           subscription.info,
@@ -875,7 +861,7 @@ var PubSubApiClient = class {
       });
       grpcSubscription.write(subscribeRequest);
       this.#logger.info(
-        `Subscribe request sent for ${numRequested} events from ${topicName}...`
+        `${topicName} - Subscribe request sent for ${numRequested} events`
       );
     } catch (error) {
       throw new Error(
@@ -903,7 +889,7 @@ var PubSubApiClient = class {
       numRequested
     });
     this.#logger.debug(
-      `Resubscribing to a batch of ${numRequested} events for: ${topicName}`
+      `${topicName} - Resubscribing to a batch of ${numRequested} events`
     );
   }
   /**
@@ -916,10 +902,13 @@ var PubSubApiClient = class {
    */
   async publish(topicName, payload, correlationKey) {
     try {
+      this.#logger.debug(
+        `${topicName} - Preparing to publish event: ${toJsonString(payload)}`
+      );
       if (!this.#client) {
         throw new Error("Pub/Sub API client is not connected.");
       }
-      const schema = await this.#getEventSchemaFromTopicName(topicName);
+      const schema = await this.#fetchEventSchemaFromTopicNameWithClient(topicName);
       const id = correlationKey ? correlationKey : import_crypto2.default.randomUUID();
       const response = await new Promise((resolve, reject) => {
         this.#client.Publish(
@@ -963,29 +952,6 @@ var PubSubApiClient = class {
     this.#client.close();
   }
   /**
-   * Retrieves an event schema from the cache based on a topic name.
-   * If it's not cached, fetches the shema with the gRPC client.
-   * @param {string} topicName name of the topic that we're fetching
-   * @returns {Promise<Schema>} Promise holding parsed event schema
-   */
-  async #getEventSchemaFromTopicName(topicName) {
-    let schema = this.#schemaChache.getFromTopicName(topicName);
-    if (!schema) {
-      try {
-        schema = await this.#fetchEventSchemaFromTopicNameWithClient(
-          topicName
-        );
-        this.#schemaChache.setWithTopicName(topicName, schema);
-      } catch (error) {
-        throw new Error(
-          `Failed to load schema for topic ${topicName}`,
-          { cause: error }
-        );
-      }
-    }
-    return schema;
-  }
-  /**
    * Retrieves an event schema from the cache based on its ID.
    * If it's not cached, fetches the shema with the gRPC client.
    * @param {string} schemaId ID of the schema that we're fetching
@@ -1019,11 +985,17 @@ var PubSubApiClient = class {
             reject(topicError);
           } else {
             const { schemaId } = response;
-            const schemaInfo = await this.#fetchEventSchemaFromIdWithClient(
-              schemaId
+            this.#logger.debug(
+              `${topicName} - Retrieving schema ID: ${schemaId}`
             );
-            this.#logger.info(`Topic schema loaded: ${topicName}`);
-            resolve(schemaInfo);
+            let schema = this.#schemaChache.getFromId(schemaId);
+            if (!schema) {
+              schema = await this.#fetchEventSchemaFromIdWithClient(
+                schemaId
+              );
+            }
+            this.#schemaChache.set(schema);
+            resolve(schema);
           }
         }
       );
