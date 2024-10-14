@@ -31,7 +31,7 @@ async function sleep(duration) {
 }
 
 async function waitFor(timeoutDuration, checkFunction) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         let checkInterval;
         const waitTimeout = setTimeout(() => {
             clearInterval(checkInterval);

@@ -16,8 +16,9 @@
     "scripts": {
         "build": "tsup && tsc",
         "test": "jasmine",
-        "prettier": "prettier --write '**/*.{css,html,js,json,md,yaml,yml}'",
-        "lint": "eslint src",
+        "format": "prettier --write '**/*.{css,html,js,json,md,yaml,yml}'",
+        "format:verify": "prettier --check '**/*.{css,html,js,json,md,yaml,yml}'",
+        "lint": "eslint \"src/**\" \"spec/**\"",
         "prepare": "husky || true",
         "precommit": "lint-staged",
         "prepublishOnly": "npm run build"
@@ -46,7 +47,7 @@
         "**/src/*.{css,html,js,json,md,yaml,yml}": [
             "prettier --write"
         ],
-        "**/src/**/*.js": [
+        "**/{src,spec}/**/*.js": [
             "eslint"
         ]
     },

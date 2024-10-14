@@ -1,5 +1,4 @@
 import * as dotenv from 'dotenv';
-import jsforce from 'jsforce';
 import PubSubApiClient from '../../src/client.js';
 import { AuthType } from '../../src/utils/configuration.js';
 import SimpleFileLogger from '../helper/simpleFileLogger.js';
