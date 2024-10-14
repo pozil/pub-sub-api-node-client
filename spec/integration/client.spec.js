@@ -9,6 +9,7 @@ import {
 } from '../helper/sfUtility.js';
 import SimpleFileLogger from '../helper/simpleFileLogger.js';
 import injectJasmineReporter from '../helper/reporter.js';
+import { sleep, waitFor } from '../helper/asyncUtilities.js';
 
 // Load config from .env file
 dotenv.config();
@@ -26,27 +27,6 @@ if (process.env.TEST_LOGGER === 'simpleFileLogger') {
 const EXTENDED_JASMINE_TIMEOUT = 10000;
 const PLATFORM_EVENT_TOPIC = '/event/Sample__e';
 const CHANGE_EVENT_TOPIC = '/data/AccountChangeEvent';
-
-async function sleep(duration) {
-    return new Promise((resolve) => setTimeout(() => resolve(), duration));
-}
-
-async function waitFor(timeoutDuration, checkFunction) {
-    return new Promise((resolve, reject) => {
-        let checkInterval;
-        const waitTimeout = setTimeout(() => {
-            clearInterval(checkInterval);
-            reject();
-        }, timeoutDuration);
-        checkInterval = setInterval(() => {
-            if (checkFunction()) {
-                clearTimeout(waitTimeout);
-                clearInterval(checkInterval);
-                resolve();
-            }
-        }, 100);
-    });
-}
 
 describe('Client', function () {
     var client;

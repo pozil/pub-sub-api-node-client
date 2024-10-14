@@ -3,6 +3,7 @@ import PubSubApiClient from '../../src/client.js';
 import { AuthType } from '../../src/utils/configuration.js';
 import SimpleFileLogger from '../helper/simpleFileLogger.js';
 import injectJasmineReporter from '../helper/reporter.js';
+import { sleep, waitFor } from '../helper/asyncUtilities.js';
 
 // Load config from .env file
 dotenv.config();
@@ -18,10 +19,6 @@ if (process.env.TEST_LOGGER === 'simpleFileLogger') {
 }
 
 const PLATFORM_EVENT_TOPIC = '/event/Sample__e';
-
-async function sleep(duration) {
-    return new Promise((resolve) => setTimeout(() => resolve(), duration));
-}
 
 describe('Client failures', function () {
     var client;
@@ -61,8 +58,8 @@ describe('Client failures', function () {
         };
         client.subscribe(PLATFORM_EVENT_TOPIC, callback, 1);
 
-        // Wait for subscribe to be effective
-        await sleep(500);
+        // Wait for subscribe to be effective and error to surface
+        await waitFor(5000, () => errorCode !== undefined);
 
         // Check for gRPC auth error and closed connection
         expect(errorCode).toBe(16);
@@ -99,8 +96,8 @@ describe('Client failures', function () {
         };
         client.subscribe('/event/INVALID', callback, 1);
 
-        // Wait for subscribe to be effective
-        await sleep(1000);
+        // Wait for subscribe to be effective and error to surface
+        await waitFor(5000, () => errorCode !== undefined);
 
         // Check for gRPC auth error and closed connection
         expect(errorCode).toBe(7);
