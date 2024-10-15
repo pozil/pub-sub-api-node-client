@@ -20,6 +20,7 @@ jobs:
             SALESFORCE_CLIENT_SECRET: ${{ secrets.SALESFORCE_CLIENT_SECRET }}
             SALESFORCE_JWT_LOGIN_URL: ${{ secrets.SALESFORCE_JWT_LOGIN_URL }}
             SALESFORCE_JWT_CLIENT_ID: ${{ secrets.SALESFORCE_JWT_CLIENT_ID }}
+            SALESFORCE_PRIVATE_KEY: ${{ secrets.SALESFORCE_PRIVATE_KEY }}
 
         steps:
             # Checkout the source code
@@ -67,8 +68,7 @@ jobs:
                   echo SALESFORCE_PRIVATE_KEY_PATH=server.key >> .env
                   echo SALESFORCE_JWT_LOGIN_URL=$SALESFORCE_JWT_LOGIN_URL >> .env
                   echo SALESFORCE_JWT_CLIENT_ID=$SALESFORCE_JWT_CLIENT_ID >> .env
-                  touch server.key
-                  echo $SALESFORCE_PRIVATE_KEY >> server.key
+                  echo $SALESFORCE_PRIVATE_KEY > server.key
 
             # Integration tests
             - name: 'Integration tests'
