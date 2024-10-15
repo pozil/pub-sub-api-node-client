@@ -599,7 +599,7 @@ export default class PubSubApiClient {
         this.#subscriptions.clear();
 
         this.#logger.info('Closing gRPC stream');
-        this.#client.close();
+        this.#client?.close();
     }
 
     /**
