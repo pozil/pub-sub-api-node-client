@@ -202,7 +202,7 @@ describe('Client', function () {
             const publishedReplayId = publishResult.replayId;
 
             // Wait for event to be received
-            await sleep(1000);
+            await waitFor(3000, () => receivedEvent !== undefined);
 
             // Check received event and subcription info
             expect(receivedEvent?.replayId).toBe(publishedReplayId);
@@ -256,7 +256,7 @@ describe('Client', function () {
             const publishedReplayId = publishResult.replayId;
 
             // Wait for event to be received
-            await sleep(1000);
+            await waitFor(3000, () => receivedEvent !== undefined);
 
             // Check received event and subcription info
             expect(receivedEvent?.replayId).toBe(publishedReplayId);
@@ -316,7 +316,7 @@ describe('Client', function () {
             const publishedReplayId = publishResult.replayId;
 
             // Wait for event to be received
-            await sleep(1000);
+            await waitFor(3000, () => receivedEvent !== undefined);
 
             // Check received event and subcription info
             expect(receivedEvent?.replayId).toBe(publishedReplayId);
