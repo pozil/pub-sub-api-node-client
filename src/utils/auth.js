@@ -96,7 +96,12 @@ export default class SalesforceAuth {
      */
     async #authWithJwtBearer() {
         const { clientId, username, loginUrl, privateKey } = this.#config;
-        if (!privateKey.toString().trim().startsWith('-----BEGIN RSA PRIVATE KEY-----')) {
+        if (
+            !privateKey
+                .toString()
+                .trim()
+                .startsWith('-----BEGIN RSA PRIVATE KEY-----')
+        ) {
             throw new Error(
                 `Private key is missing -----BEGIN RSA PRIVATE KEY----- header`
             );
