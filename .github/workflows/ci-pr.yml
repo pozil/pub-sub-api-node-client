@@ -77,4 +77,4 @@ jobs:
             # Housekeeping
             - name: 'Delete test environment configuration'
               if: always()
-              run: rm .env server.key
+              run: rm -f .env server.key
