@@ -174,6 +174,19 @@ export function encodeReplayId(replayId) {
 }
 
 /**
+ * Safely serializes an event into a JSON string
+ * @param {any} event the event object
+ * @returns {string} a string holding the JSON respresentation of the event
+ * @protected
+ */
+export function toJsonString(event) {
+    return JSON.stringify(event, (key, value) =>
+        /* Convert BigInt values into strings and keep other types unchanged */
+        typeof value === 'bigint' ? value.toString() : value
+    );
+}
+
+/**
  * Converts a hexadecimal string into a string binary representation
  * @param {string} hex
  * @returns {string}
