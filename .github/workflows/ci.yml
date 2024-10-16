@@ -73,7 +73,7 @@ jobs:
 
             # Integration tests
             - name: 'Integration tests'
-              run: npm run test
+              run: export NODE_OPTIONS=--openssl-legacy-provider && npm run test
 
             # Housekeeping
             - name: 'Delete test environment configuration'
