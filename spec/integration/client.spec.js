@@ -273,13 +273,9 @@ describe('Client', function () {
             let receivedEvent, receivedSub;
 
             // Read private key and remove potential invalid characters from key
-            const privateKeyBuffer = fs.readFileSync(
+            const privateKey = fs.readFileSync(
                 process.env.SALESFORCE_PRIVATE_KEY_PATH
             );
-            const privateKeyString = privateKeyBuffer
-                .toString()
-                .replace(/\\n/g, '\n');
-            const privateKey = Buffer.from(privateKeyString, 'utf-8');
 
             // Build PubSub client
             client = new PubSubApiClient(
