@@ -273,9 +273,9 @@ describe('Client', function () {
             let receivedEvent, receivedSub;
 
             // Read private key
-            const privateKey = fs.readFileSync(
-                process.env.SALESFORCE_PRIVATE_KEY_PATH
-            );
+            const privateKey = fs
+                .readFileSync(process.env.SALESFORCE_PRIVATE_KEY_PATH)
+                .replace(/\\n/g, '\n');
 
             // Build PubSub client
             client = new PubSubApiClient(
