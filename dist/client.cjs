@@ -460,6 +460,11 @@ var SalesforceAuth = class {
    */
   async #authWithJwtBearer() {
     const { clientId, username, loginUrl, privateKey } = this.#config;
+    if (!privateKey.toString().trim().startsWith("-----BEGIN RSA PRIVATE KEY-----")) {
+      throw new Error(
+        `Private key is missing -----BEGIN RSA PRIVATE KEY----- header`
+      );
+    }
     const header = JSON.stringify({ alg: "RS256" });
     const claims = JSON.stringify({
       iss: clientId,
@@ -949,7 +954,7 @@ var PubSubApiClient = class {
     this.#logger.info("Clear subscriptions");
     this.#subscriptions.clear();
     this.#logger.info("Closing gRPC stream");
-    this.#client.close();
+    this.#client?.close();
   }
   /**
    * Retrieves an event schema from the cache based on its ID.
