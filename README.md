@@ -37,7 +37,7 @@ See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-ap
 
 In v4 and earlier versions of this client:
 
--   you had to specify configuration in a `.env` file with specific property names.
+-   you specify the configuration in a `.env` file with specific property names.
 -   you connect with either the `connect()` or `connectWithAuth()` method depending on the authentication flow.
 
 In v5:
@@ -47,9 +47,30 @@ In v5:
 
 ### Event handling
 
-In v4 and earlier versions of this client you used an asynchronous `EventEmitter` to receive updates such as incoming messages or lifecycle events.
+In v4 and earlier versions of this client you use an asynchronous `EventEmitter` to receive updates such as incoming messages or lifecycle events:
 
-In v5, you use a synchronous callback function to receive the same information. This helps to ensure that events are received in the right order.
+```js
+// Subscribe to account change events
+const eventEmitter = await client.subscribe(
+    '/data/AccountChangeEvent'
+);
+
+// Handle incoming events
+eventEmitter.on('data', (event) => {
+    // Event handling logic goes here
+}):
+```
+
+In v5 you use a synchronous callback function to receive the same information. This helps to ensure that events are received in the right order.
+
+```js
+const subscribeCallback = (subscription, callbackType, data) => {
+    // Event handling logic goes here
+};
+
+// Subscribe to account change events
+await client.subscribe('/data/AccountChangeEvent', subscribeCallback);
+```
 
 ## Installation and Configuration
 
