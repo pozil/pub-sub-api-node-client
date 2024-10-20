@@ -110,7 +110,7 @@ This is the most secure authentication option. Recommended for production use.
 
 ```js
 // Read private key file
-const privateKey = fs.readFileSync(process.env.SALESFORCE_PRIVATE_KEY_FILE);
+const privateKey = fs.readFileSync(process.env.SALESFORCE_PRIVATE_KEY_FILE).replace(/\\n/g, '\n');
 
 // Build PubSub client
 const client = new PubSubApiClient({
