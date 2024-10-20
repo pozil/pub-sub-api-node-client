@@ -20,4 +20,11 @@ export function decodeReplayId(encodedReplayId: Buffer): number;
  * @protected
  */
 export function encodeReplayId(replayId: number): Buffer;
+/**
+ * Safely serializes an event into a JSON string
+ * @param {any} event the event object
+ * @returns {string} a string holding the JSON respresentation of the event
+ * @protected
+ */
+export function toJsonString(event: any): string;
 //# sourceMappingURL=eventParser.d.ts.map

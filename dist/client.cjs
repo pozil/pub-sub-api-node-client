@@ -33,7 +33,7 @@ __export(client_exports, {
 });
 module.exports = __toCommonJS(client_exports);
 var import_crypto2 = __toESM(require("crypto"), 1);
-var import_fs2 = __toESM(require("fs"), 1);
+var import_fs = __toESM(require("fs"), 1);
 var import_url = require("url");
 var import_avro_js3 = __toESM(require("avro-js"), 1);
 var import_certifi = __toESM(require("certifi"), 1);
@@ -115,73 +115,6 @@ var EventParseError = class extends Error {
   }
 };
 
-// src/utils/pubSubEventEmitter.js
-var import_events = require("events");
-var PubSubEventEmitter = class extends import_events.EventEmitter {
-  #topicName;
-  #requestedEventCount;
-  #receivedEventCount;
-  #latestReplayId;
-  /**
-   * Create a new EventEmitter for Pub/Sub API events
-   * @param {string} topicName
-   * @param {number} requestedEventCount
-   * @protected
-   */
-  constructor(topicName, requestedEventCount) {
-    super();
-    this.#topicName = topicName;
-    this.#requestedEventCount = requestedEventCount;
-    this.#receivedEventCount = 0;
-    this.#latestReplayId = null;
-  }
-  emit(eventName, args) {
-    if (eventName === "data") {
-      this.#receivedEventCount++;
-      this.#latestReplayId = args.replayId;
-    }
-    return super.emit(eventName, args);
-  }
-  /**
-   * Returns the number of events that were requested when subscribing.
-   * @returns {number} the number of events that were requested
-   */
-  getRequestedEventCount() {
-    return this.#requestedEventCount;
-  }
-  /**
-   * Returns the number of events that were received since subscribing.
-   * @returns {number} the number of events that were received
-   */
-  getReceivedEventCount() {
-    return this.#receivedEventCount;
-  }
-  /**
-   * Returns the topic name for this subscription.
-   * @returns {string} the topic name
-   */
-  getTopicName() {
-    return this.#topicName;
-  }
-  /**
-   * Returns the replay ID of the last processed event or null if no event was processed yet.
-   * @return {number} replay ID
-   */
-  getLatestReplayId() {
-    return this.#latestReplayId;
-  }
-  /**
-   * @protected
-   * Resets the requested/received event counts.
-   * This method should only be be used internally by the client when it resubscribes.
-   * @param {number} newRequestedEventCount
-   */
-  _resetEventCount(newRequestedEventCount) {
-    this.#requestedEventCount = newRequestedEventCount;
-    this.#receivedEventCount = 0;
-  }
-};
-
 // src/utils/avroHelper.js
 var import_avro_js = __toESM(require("avro-js"), 1);
 var CustomLongAvroType = import_avro_js.default.types.LongType.using({
@@ -213,95 +146,94 @@ var CustomLongAvroType = import_avro_js.default.types.LongType.using({
 });
 
 // src/utils/configuration.js
-var dotenv = __toESM(require("dotenv"), 1);
-var import_fs = __toESM(require("fs"), 1);
-var AUTH_USER_SUPPLIED = "user-supplied";
-var AUTH_USERNAME_PASSWORD = "username-password";
-var AUTH_OAUTH_CLIENT_CREDENTIALS = "oauth-client-credentials";
-var AUTH_OAUTH_JWT_BEARER = "oauth-jwt-bearer";
+var DEFAULT_PUB_SUB_ENDPOINT = "api.pubsub.salesforce.com:7443";
+var AuthType = {
+  USER_SUPPLIED: "user-supplied",
+  USERNAME_PASSWORD: "username-password",
+  OAUTH_CLIENT_CREDENTIALS: "oauth-client-credentials",
+  OAUTH_JWT_BEARER: "oauth-jwt-bearer"
+};
 var Configuration = class _Configuration {
-  static load() {
-    dotenv.config();
-    _Configuration.#checkMandatoryVariables([
-      "SALESFORCE_AUTH_TYPE",
-      "PUB_SUB_ENDPOINT"
+  /**
+   * @param {Configuration} config the client configuration
+   * @returns {Configuration} the sanitized client configuration
+   */
+  static load(config) {
+    config.pubSubEndpoint = config.pubSubEndpoint ?? DEFAULT_PUB_SUB_ENDPOINT;
+    _Configuration.#checkMandatoryVariables(config, ["authType"]);
+    switch (config.authType) {
+      case AuthType.USER_SUPPLIED:
+        config = _Configuration.#loadUserSuppliedAuth(config);
+        break;
+      case AuthType.USERNAME_PASSWORD:
+        _Configuration.#checkMandatoryVariables(config, [
+          "loginUrl",
+          "username",
+          "password"
+        ]);
+        config.userToken = config.userToken ?? "";
+        break;
+      case AuthType.OAUTH_CLIENT_CREDENTIALS:
+        _Configuration.#checkMandatoryVariables(config, [
+          "loginUrl",
+          "clientId",
+          "clientSecret"
+        ]);
+        break;
+      case AuthType.OAUTH_JWT_BEARER:
+        _Configuration.#checkMandatoryVariables(config, [
+          "loginUrl",
+          "clientId",
+          "username",
+          "privateKey"
+        ]);
+        break;
+      default:
+        throw new Error(
+          `Unsupported authType value: ${config.authType}`
+        );
+    }
+    return config;
+  }
+  /**
+   * @param {Configuration} config the client configuration
+   * @returns {Configuration} sanitized configuration
+   */
+  static #loadUserSuppliedAuth(config) {
+    _Configuration.#checkMandatoryVariables(config, [
+      "accessToken",
+      "instanceUrl"
     ]);
-    if (_Configuration.isUsernamePasswordAuth()) {
-      _Configuration.#checkMandatoryVariables([
-        "SALESFORCE_LOGIN_URL",
-        "SALESFORCE_USERNAME",
-        "SALESFORCE_PASSWORD"
-      ]);
-    } else if (_Configuration.isOAuthClientCredentialsAuth()) {
-      _Configuration.#checkMandatoryVariables([
-        "SALESFORCE_LOGIN_URL",
-        "SALESFORCE_CLIENT_ID",
-        "SALESFORCE_CLIENT_SECRET"
-      ]);
-    } else if (_Configuration.isOAuthJwtBearerAuth()) {
-      _Configuration.#checkMandatoryVariables([
-        "SALESFORCE_LOGIN_URL",
-        "SALESFORCE_CLIENT_ID",
-        "SALESFORCE_USERNAME",
-        "SALESFORCE_PRIVATE_KEY_FILE"
-      ]);
-      _Configuration.getSfPrivateKey();
-    } else if (!_Configuration.isUserSuppliedAuth()) {
+    if (!config.instanceUrl.startsWith("https://")) {
       throw new Error(
-        `Invalid value for SALESFORCE_AUTH_TYPE environment variable: ${_Configuration.getAuthType()}`
+        `Invalid Salesforce Instance URL format supplied: ${config.instanceUrl}`
       );
     }
-  }
-  static getAuthType() {
-    return process.env.SALESFORCE_AUTH_TYPE;
-  }
-  static getSfLoginUrl() {
-    return process.env.SALESFORCE_LOGIN_URL;
-  }
-  static getSfUsername() {
-    return process.env.SALESFORCE_USERNAME;
-  }
-  static getSfSecuredPassword() {
-    if (process.env.SALESFORCE_TOKEN) {
-      return process.env.SALESFORCE_PASSWORD + process.env.SALESFORCE_TOKEN;
+    if (!config.organizationId) {
+      try {
+        config.organizationId = config.accessToken.split("!").at(0);
+      } catch (error) {
+        throw new Error(
+          "Unable to parse organizationId from access token",
+          {
+            cause: error
+          }
+        );
+      }
     }
-    return process.env.SALESFORCE_PASSWORD;
-  }
-  static getSfClientId() {
-    return process.env.SALESFORCE_CLIENT_ID;
-  }
-  static getSfClientSecret() {
-    return process.env.SALESFORCE_CLIENT_SECRET;
-  }
-  static getSfPrivateKey() {
-    try {
-      const keyPath = process.env.SALESFORCE_PRIVATE_KEY_FILE;
-      return import_fs.default.readFileSync(keyPath, "utf8");
-    } catch (error) {
-      throw new Error("Failed to load private key file", {
-        cause: error
-      });
+    if (config.organizationId.length !== 15 && config.organizationId.length !== 18) {
+      throw new Error(
+        `Invalid Salesforce Org ID format supplied: ${config.organizationId}`
+      );
     }
+    return config;
   }
-  static getPubSubEndpoint() {
-    return process.env.PUB_SUB_ENDPOINT;
-  }
-  static isUserSuppliedAuth() {
-    return _Configuration.getAuthType() === AUTH_USER_SUPPLIED;
-  }
-  static isUsernamePasswordAuth() {
-    return _Configuration.getAuthType() === AUTH_USERNAME_PASSWORD;
-  }
-  static isOAuthClientCredentialsAuth() {
-    return _Configuration.getAuthType() === AUTH_OAUTH_CLIENT_CREDENTIALS;
-  }
-  static isOAuthJwtBearerAuth() {
-    return _Configuration.getAuthType() === AUTH_OAUTH_JWT_BEARER;
-  }
-  static #checkMandatoryVariables(varNames) {
+  static #checkMandatoryVariables(config, varNames) {
     varNames.forEach((varName) => {
-      if (!process.env[varName]) {
-        throw new Error(`Missing ${varName} environment variable`);
+      if (!config[varName]) {
+        throw new Error(
+          `Missing value for ${varName} mandatory configuration key`
+        );
       }
     });
   }
@@ -416,6 +348,15 @@ function encodeReplayId(replayId) {
   buf.writeBigUInt64BE(BigInt(replayId), 0);
   return buf;
 }
+function toJsonString(event) {
+  return JSON.stringify(
+    event,
+    (key, value) => (
+      /* Convert BigInt values into strings and keep other types unchanged */
+      typeof value === "bigint" ? value.toString() : value
+    )
+  );
+}
 function hexToBin(hex) {
   let bin = hex.substring(2);
   bin = bin.replaceAll("0", "0000");
@@ -441,88 +382,113 @@ function hexToBin(hex) {
 var import_crypto = __toESM(require("crypto"), 1);
 var import_jsforce = __toESM(require("jsforce"), 1);
 var import_undici = require("undici");
-var SalesforceAuth = class _SalesforceAuth {
+var SalesforceAuth = class {
+  /**
+   * Client configuration
+   * @type {Configuration}
+   */
+  #config;
+  /**
+   * Logger
+   * @type {Logger}
+   */
+  #logger;
+  /**
+   * Builds a new Pub/Sub API client
+   * @param {Configuration} config the client configuration
+   * @param {Logger} logger a logger
+   */
+  constructor(config, logger) {
+    this.#config = config;
+    this.#logger = logger;
+  }
   /**
    * Authenticates with the auth mode specified in configuration
    * @returns {ConnectionMetadata}
    */
-  static async authenticate() {
-    if (Configuration.isUsernamePasswordAuth()) {
-      return _SalesforceAuth.#authWithUsernamePassword();
-    } else if (Configuration.isOAuthClientCredentialsAuth()) {
-      return _SalesforceAuth.#authWithOAuthClientCredentials();
-    } else if (Configuration.isOAuthJwtBearerAuth()) {
-      return _SalesforceAuth.#authWithJwtBearer();
-    } else {
-      throw new Error("Unsupported authentication mode.");
+  async authenticate() {
+    this.#logger.debug(`Authenticating with ${this.#config.authType} mode`);
+    switch (this.#config.authType) {
+      case AuthType.USER_SUPPLIED:
+        throw new Error(
+          "Authenticate method should not be called in user-supplied mode."
+        );
+      case AuthType.USERNAME_PASSWORD:
+        return this.#authWithUsernamePassword();
+      case AuthType.OAUTH_CLIENT_CREDENTIALS:
+        return this.#authWithOAuthClientCredentials();
+      case AuthType.OAUTH_JWT_BEARER:
+        return this.#authWithJwtBearer();
+      default:
+        throw new Error(
+          `Unsupported authType value: ${this.#config.authType}`
+        );
     }
   }
   /**
    * Authenticates with the username/password flow
    * @returns {ConnectionMetadata}
    */
-  static async #authWithUsernamePassword() {
+  async #authWithUsernamePassword() {
+    const { loginUrl, username, password, userToken } = this.#config;
     const sfConnection = new import_jsforce.default.Connection({
-      loginUrl: Configuration.getSfLoginUrl()
+      loginUrl
     });
-    await sfConnection.login(
-      Configuration.getSfUsername(),
-      Configuration.getSfSecuredPassword()
-    );
+    await sfConnection.login(username, `${password}${userToken}`);
     return {
       accessToken: sfConnection.accessToken,
       instanceUrl: sfConnection.instanceUrl,
       organizationId: sfConnection.userInfo.organizationId,
-      username: Configuration.getSfUsername()
+      username
     };
   }
   /**
    * Authenticates with the OAuth 2.0 client credentials flow
    * @returns {ConnectionMetadata}
    */
-  static async #authWithOAuthClientCredentials() {
+  async #authWithOAuthClientCredentials() {
+    const { clientId, clientSecret } = this.#config;
     const params = new URLSearchParams();
     params.append("grant_type", "client_credentials");
-    params.append("client_id", Configuration.getSfClientId());
-    params.append("client_secret", Configuration.getSfClientSecret());
-    return _SalesforceAuth.#authWithOAuth(params.toString());
+    params.append("client_id", clientId);
+    params.append("client_secret", clientSecret);
+    return this.#authWithOAuth(params.toString());
   }
   /**
    * Authenticates with the OAuth 2.0 JWT bearer flow
    * @returns {ConnectionMetadata}
    */
-  static async #authWithJwtBearer() {
+  async #authWithJwtBearer() {
+    const { clientId, username, loginUrl, privateKey } = this.#config;
     const header = JSON.stringify({ alg: "RS256" });
     const claims = JSON.stringify({
-      iss: Configuration.getSfClientId(),
-      sub: Configuration.getSfUsername(),
-      aud: Configuration.getSfLoginUrl(),
+      iss: clientId,
+      sub: username,
+      aud: loginUrl,
       exp: Math.floor(Date.now() / 1e3) + 60 * 5
     });
     let token = `${base64url(header)}.${base64url(claims)}`;
     const sign = import_crypto.default.createSign("RSA-SHA256");
     sign.update(token);
     sign.end();
-    token += `.${base64url(sign.sign(Configuration.getSfPrivateKey()))}`;
+    token += `.${base64url(sign.sign(privateKey))}`;
     const body = `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${token}`;
-    return _SalesforceAuth.#authWithOAuth(body);
+    return this.#authWithOAuth(body);
   }
   /**
    * Generic OAuth 2.0 connect method
    * @param {string} body URL encoded body
    * @returns {ConnectionMetadata} connection metadata
    */
-  static async #authWithOAuth(body) {
-    const loginResponse = await (0, import_undici.fetch)(
-      `${Configuration.getSfLoginUrl()}/services/oauth2/token`,
-      {
-        method: "post",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body
-      }
-    );
+  async #authWithOAuth(body) {
+    const { loginUrl } = this.#config;
+    const loginResponse = await (0, import_undici.fetch)(`${loginUrl}/services/oauth2/token`, {
+      method: "post",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body
+    });
     if (loginResponse.status !== 200) {
       throw new Error(
         `Authentication error: HTTP ${loginResponse.status} - ${await loginResponse.text()}`
@@ -530,7 +496,7 @@ var SalesforceAuth = class _SalesforceAuth {
     }
     const { access_token, instance_url } = await loginResponse.json();
     const userInfoResponse = await (0, import_undici.fetch)(
-      `${Configuration.getSfLoginUrl()}/services/oauth2/userinfo`,
+      `${loginUrl}/services/oauth2/userinfo`,
       {
         headers: { authorization: `Bearer ${access_token}` }
       }
@@ -555,8 +521,21 @@ function base64url(input) {
 }
 
 // src/client.js
+var SubscribeCallbackType = {
+  EVENT: "event",
+  LAST_EVENT: "lastEvent",
+  ERROR: "error",
+  END: "end",
+  GRPC_STATUS: "grpcStatus",
+  GRPC_KEEP_ALIVE: "grpcKeepAlive"
+};
 var MAX_EVENT_BATCH_SIZE = 100;
 var PubSubApiClient = class {
+  /**
+   * Client configuration
+   * @type {Configuration}
+   */
+  #config;
   /**
    * gRPC client
    * @type {Object}
@@ -568,21 +547,26 @@ var PubSubApiClient = class {
    */
   #schemaChache;
   /**
-   * Map of subscribitions indexed by topic name
-   * @type {Map<string,Object>}
+   * Map of subscriptions indexed by topic name
+   * @type {Map<string,Subscription>}
    */
   #subscriptions;
+  /**
+   * Logger
+   * @type {Logger}
+   */
   #logger;
   /**
    * Builds a new Pub/Sub API client
+   * @param {Configuration} config the client configuration
    * @param {Logger} [logger] an optional custom logger. The client uses the console if no value is supplied.
    */
-  constructor(logger = console) {
+  constructor(config, logger = console) {
     this.#logger = logger;
     this.#schemaChache = new SchemaCache();
     this.#subscriptions = /* @__PURE__ */ new Map();
     try {
-      Configuration.load();
+      this.#config = Configuration.load(config);
     } catch (error) {
       this.#logger.error(error);
       throw new Error("Failed to initialize Pub/Sub API client", {
@@ -591,86 +575,43 @@ var PubSubApiClient = class {
     }
   }
   /**
-   * Authenticates with Salesforce then, connects to the Pub/Sub API.
+   * Authenticates with Salesforce (if not using user-supplied authentication mode) then,
+   * connects to the Pub/Sub API.
    * @returns {Promise<void>} Promise that resolves once the connection is established
    * @memberof PubSubApiClient.prototype
    */
   async connect() {
-    if (Configuration.isUserSuppliedAuth()) {
-      throw new Error(
-        'You selected user-supplied authentication mode so you cannot use the "connect()" method. Use "connectWithAuth(...)" instead.'
-      );
-    }
-    let conMetadata;
-    try {
-      conMetadata = await SalesforceAuth.authenticate();
-      this.#logger.info(
-        `Connected to Salesforce org ${conMetadata.instanceUrl} as ${conMetadata.username}`
-      );
-    } catch (error) {
-      throw new Error("Failed to authenticate with Salesforce", {
-        cause: error
-      });
-    }
-    return this.#connectToPubSubApi(conMetadata);
-  }
-  /**
-   * Connects to the Pub/Sub API with user-supplied authentication.
-   * @param {string} accessToken Salesforce access token
-   * @param {string} instanceUrl Salesforce instance URL
-   * @param {string} [organizationId] optional organization ID. If you don't provide one, we'll attempt to parse it from the accessToken.
-   * @returns {Promise<void>} Promise that resolves once the connection is established
-   * @memberof PubSubApiClient.prototype
-   */
-  async connectWithAuth(accessToken, instanceUrl, organizationId) {
-    if (!instanceUrl || !instanceUrl.startsWith("https://")) {
-      throw new Error(
-        `Invalid Salesforce Instance URL format supplied: ${instanceUrl}`
-      );
-    }
-    let validOrganizationId = organizationId;
-    if (!organizationId) {
+    if (this.#config.authType !== AuthType.USER_SUPPLIED) {
       try {
-        validOrganizationId = accessToken.split("!").at(0);
-      } catch (error) {
-        throw new Error(
-          "Unable to parse organizationId from given access token",
-          {
-            cause: error
-          }
+        const auth = new SalesforceAuth(this.#config, this.#logger);
+        const conMetadata = await auth.authenticate();
+        this.#config.accessToken = conMetadata.accessToken;
+        this.#config.username = conMetadata.username;
+        this.#config.instanceUrl = conMetadata.instanceUrl;
+        this.#config.organizationId = conMetadata.organizationId;
+        this.#logger.info(
+          `Connected to Salesforce org ${conMetadata.instanceUrl} (${this.#config.organizationId}) as ${conMetadata.username}`
         );
+      } catch (error) {
+        throw new Error("Failed to authenticate with Salesforce", {
+          cause: error
+        });
       }
     }
-    if (validOrganizationId.length !== 15 && validOrganizationId.length !== 18) {
-      throw new Error(
-        `Invalid Salesforce Org ID format supplied: ${validOrganizationId}`
-      );
-    }
-    return this.#connectToPubSubApi({
-      accessToken,
-      instanceUrl,
-      organizationId: validOrganizationId
-    });
-  }
-  /**
-   * Connects to the Pub/Sub API.
-   * @param {import('./auth.js').ConnectionMetadata} conMetadata
-   * @returns {Promise<void>} Promise that resolves once the connection is established
-   */
-  async #connectToPubSubApi(conMetadata) {
     try {
-      const rootCert = import_fs2.default.readFileSync(import_certifi.default);
+      this.#logger.debug(`Connecting to Pub/Sub API`);
+      const rootCert = import_fs.default.readFileSync(import_certifi.default);
       const protoFilePath = (0, import_url.fileURLToPath)(
-        new URL("./pubsub_api-be352429.proto?hash=be352429", "file://" + __filename)
+        new URL("./pubsub_api-07e1f84a.proto?hash=07e1f84a", "file://" + __filename)
       );
       const packageDef = import_proto_loader.default.loadSync(protoFilePath, {});
       const grpcObj = import_grpc_js.default.loadPackageDefinition(packageDef);
       const sfdcPackage = grpcObj.eventbus.v1;
       const metaCallback = (_params, callback) => {
         const meta = new import_grpc_js.default.Metadata();
-        meta.add("accesstoken", conMetadata.accessToken);
-        meta.add("instanceurl", conMetadata.instanceUrl);
-        meta.add("tenantid", conMetadata.organizationId);
+        meta.add("accesstoken", this.#config.accessToken);
+        meta.add("instanceurl", this.#config.instanceUrl);
+        meta.add("tenantid", this.#config.organizationId);
         callback(null, meta);
       };
       const callCreds = import_grpc_js.default.credentials.createFromMetadataGenerator(metaCallback);
@@ -679,11 +620,11 @@ var PubSubApiClient = class {
         callCreds
       );
       this.#client = new sfdcPackage.PubSub(
-        Configuration.getPubSubEndpoint(),
+        this.#config.pubSubEndpoint,
         combCreds
       );
       this.#logger.info(
-        `Connected to Pub/Sub API endpoint ${Configuration.getPubSubEndpoint()}`
+        `Connected to Pub/Sub API endpoint ${this.#config.pubSubEndpoint}`
       );
     } catch (error) {
       throw new Error("Failed to connect to Pub/Sub API", {
@@ -702,52 +643,64 @@ var PubSubApiClient = class {
   /**
    * Subscribes to a topic and retrieves all past events in retention window.
    * @param {string} topicName name of the topic that we're subscribing to
+   * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
    * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
-   * @returns {Promise<PubSubEventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
    * @memberof PubSubApiClient.prototype
    */
-  async subscribeFromEarliestEvent(topicName, numRequested = null) {
-    return this.#subscribe({
-      topicName,
-      numRequested,
-      replayPreset: 1
-    });
+  subscribeFromEarliestEvent(topicName, subscribeCallback, numRequested = null) {
+    this.#subscribe(
+      {
+        topicName,
+        numRequested,
+        replayPreset: 1
+      },
+      subscribeCallback
+    );
   }
   /**
    * Subscribes to a topic and retrieves past events starting from a replay ID.
    * @param {string} topicName name of the topic that we're subscribing to
+   * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
    * @param {number | null} numRequested number of events requested. If null, the client keeps the subscription alive forever.
    * @param {number} replayId replay ID
-   * @returns {Promise<PubSubEventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
    * @memberof PubSubApiClient.prototype
    */
-  async subscribeFromReplayId(topicName, numRequested, replayId) {
-    return this.#subscribe({
-      topicName,
-      numRequested,
-      replayPreset: 2,
-      replayId: encodeReplayId(replayId)
-    });
+  subscribeFromReplayId(topicName, subscribeCallback, numRequested, replayId) {
+    this.#subscribe(
+      {
+        topicName,
+        numRequested,
+        replayPreset: 2,
+        replayId: encodeReplayId(replayId)
+      },
+      subscribeCallback
+    );
   }
   /**
    * Subscribes to a topic.
    * @param {string} topicName name of the topic that we're subscribing to
+   * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
    * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
-   * @returns {Promise<PubSubEventEmitter>} Promise that holds an emitter that allows you to listen to received events and stream lifecycle events
    * @memberof PubSubApiClient.prototype
    */
-  async subscribe(topicName, numRequested = null) {
-    return this.#subscribe({
-      topicName,
-      numRequested
-    });
+  subscribe(topicName, subscribeCallback, numRequested = null) {
+    this.#subscribe(
+      {
+        topicName,
+        numRequested
+      },
+      subscribeCallback
+    );
   }
   /**
    * Subscribes to a topic using the gRPC client and an event schema
-   * @param {object} subscribeRequest subscription request
-   * @return {PubSubEventEmitter} emitter that allows you to listen to received events and stream lifecycle events
+   * @param {SubscribeRequest} subscribeRequest subscription request
+   * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
    */
-  async #subscribe(subscribeRequest) {
+  #subscribe(subscribeRequest, subscribeCallback) {
+    this.#logger.debug(
+      `Preparing subscribe request: ${JSON.stringify(subscribeRequest)}`
+    );
     let { topicName, numRequested } = subscribeRequest;
     try {
       let isInfiniteEventRequest = false;
@@ -769,38 +722,72 @@ var PubSubApiClient = class {
           this.#logger.warn(
             `The number of requested events for ${topicName} exceeds max event batch size (${MAX_EVENT_BATCH_SIZE}).`
           );
+          subscribeRequest.numRequested = MAX_EVENT_BATCH_SIZE;
         }
       }
       if (!this.#client) {
         throw new Error("Pub/Sub API client is not connected.");
       }
       let subscription = this.#subscriptions.get(topicName);
-      if (!subscription) {
-        subscription = this.#client.Subscribe();
+      let grpcSubscription;
+      if (subscription) {
+        this.#logger.debug(
+          `${topicName} - Reusing cached gRPC subscription`
+        );
+        grpcSubscription = subscription.grpcSubscription;
+        subscription.info.receivedEventCount = 0;
+        subscription.info.requestedEventCount = subscribeRequest.numRequested;
+      } else {
+        this.#logger.debug(
+          `${topicName} - Establishing new gRPC subscription`
+        );
+        grpcSubscription = this.#client.Subscribe();
+        subscription = {
+          info: {
+            topicName,
+            requestedEventCount: subscribeRequest.numRequested,
+            receivedEventCount: 0,
+            lastReplayId: null
+          },
+          grpcSubscription,
+          subscribeCallback
+        };
         this.#subscriptions.set(topicName, subscription);
       }
-      subscription.write(subscribeRequest);
-      this.#logger.info(
-        `Subscribe request sent for ${numRequested} events from ${topicName}...`
-      );
-      const eventEmitter = new PubSubEventEmitter(
-        topicName,
-        numRequested
-      );
-      subscription.on("data", async (data) => {
+      grpcSubscription.on("data", async (data) => {
         const latestReplayId = decodeReplayId(data.latestReplayId);
+        subscription.info.lastReplayId = latestReplayId;
         if (data.events) {
           this.#logger.info(
-            `Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
+            `${topicName} - Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
           );
           for (const event of data.events) {
             try {
+              this.#logger.debug(
+                `${topicName} - Raw event: ${toJsonString(event)}`
+              );
+              this.#logger.debug(
+                `${topicName} - Retrieving schema ID: ${event.event.schemaId}`
+              );
               const schema = await this.#getEventSchemaFromId(
                 event.event.schemaId
               );
+              const subscription2 = this.#subscriptions.get(topicName);
+              if (!subscription2) {
+                throw new Error(
+                  `Failed to retrieve subscription for topic ${topicName}.`
+                );
+              }
+              subscription2.info.receivedEventCount++;
               const parsedEvent = parseEvent(schema, event);
-              this.#logger.debug(parsedEvent);
-              eventEmitter.emit("data", parsedEvent);
+              this.#logger.debug(
+                `${topicName} - Parsed event: ${toJsonString(parsedEvent)}`
+              );
+              subscribeCallback(
+                subscription2.info,
+                SubscribeCallbackType.EVENT,
+                parsedEvent
+              );
             } catch (error) {
               let replayId;
               try {
@@ -815,46 +802,67 @@ var PubSubApiClient = class {
                 event,
                 latestReplayId
               );
-              eventEmitter.emit("error", parseError);
+              subscribeCallback(
+                subscription.info,
+                SubscribeCallbackType.ERROR,
+                parseError
+              );
               this.#logger.error(parseError);
             }
-            if (eventEmitter.getReceivedEventCount() === eventEmitter.getRequestedEventCount()) {
+            if (subscription.info.receivedEventCount === subscription.info.requestedEventCount) {
               if (isInfiniteEventRequest) {
                 this.requestAdditionalEvents(
-                  eventEmitter,
-                  MAX_EVENT_BATCH_SIZE
+                  subscription.info.topicName,
+                  subscription.info.requestedEventCount
                 );
               } else {
-                eventEmitter.emit("lastevent");
+                subscribeCallback(
+                  subscription.info,
+                  SubscribeCallbackType.LAST_EVENT
+                );
               }
             }
           }
         } else {
           this.#logger.debug(
-            `Received keepalive message. Latest replay ID: ${latestReplayId}`
+            `${topicName} - Received keepalive message. Latest replay ID: ${latestReplayId}`
           );
           data.latestReplayId = latestReplayId;
-          eventEmitter.emit("keepalive", data);
+          subscribeCallback(
+            subscription.info,
+            SubscribeCallbackType.GRPC_KEEP_ALIVE
+          );
         }
       });
-      subscription.on("end", () => {
+      grpcSubscription.on("end", () => {
         this.#subscriptions.delete(topicName);
-        this.#logger.info("gRPC stream ended");
-        eventEmitter.emit("end");
+        this.#logger.info(`${topicName} - gRPC stream ended`);
+        subscribeCallback(subscription.info, SubscribeCallbackType.END);
       });
-      subscription.on("error", (error) => {
+      grpcSubscription.on("error", (error) => {
         this.#logger.error(
-          `gRPC stream error: ${JSON.stringify(error)}`
+          `${topicName} - gRPC stream error: ${JSON.stringify(error)}`
         );
-        eventEmitter.emit("error", error);
+        subscribeCallback(
+          subscription.info,
+          SubscribeCallbackType.ERROR,
+          error
+        );
       });
-      subscription.on("status", (status) => {
+      grpcSubscription.on("status", (status) => {
         this.#logger.info(
-          `gRPC stream status: ${JSON.stringify(status)}`
+          `${topicName} - gRPC stream status: ${JSON.stringify(status)}`
         );
-        eventEmitter.emit("status", status);
+        subscribeCallback(
+          subscription.info,
+          SubscribeCallbackType.GRPC_STATUS,
+          status
+        );
       });
-      return eventEmitter;
+      grpcSubscription.write(subscribeRequest);
+      this.#logger.info(
+        `${topicName} - Subscribe request sent for ${numRequested} events`
+      );
     } catch (error) {
       throw new Error(
         `Failed to subscribe to events for topic ${topicName}`,
@@ -864,24 +872,24 @@ var PubSubApiClient = class {
   }
   /**
    * Request additional events on an existing subscription.
-   * @param {PubSubEventEmitter} eventEmitter event emitter that was obtained in the first subscribe call
+   * @param {string} topicName topic name
    * @param {number} numRequested number of events requested.
    */
-  async requestAdditionalEvents(eventEmitter, numRequested) {
-    const topicName = eventEmitter.getTopicName();
+  requestAdditionalEvents(topicName, numRequested) {
     const subscription = this.#subscriptions.get(topicName);
     if (!subscription) {
       throw new Error(
         `Failed to request additional events for topic ${topicName}, no active subscription found.`
       );
     }
-    eventEmitter._resetEventCount(numRequested);
+    subscription.receivedEventCount = 0;
+    subscription.requestedEventCount = numRequested;
     subscription.write({
       topicName,
       numRequested
     });
     this.#logger.debug(
-      `Resubscribing to a batch of ${numRequested} events for: ${topicName}`
+      `${topicName} - Resubscribing to a batch of ${numRequested} events`
     );
   }
   /**
@@ -894,6 +902,9 @@ var PubSubApiClient = class {
    */
   async publish(topicName, payload, correlationKey) {
     try {
+      this.#logger.debug(
+        `${topicName} - Preparing to publish event: ${toJsonString(payload)}`
+      );
       if (!this.#client) {
         throw new Error("Pub/Sub API client is not connected.");
       }
@@ -936,9 +947,6 @@ var PubSubApiClient = class {
    */
   close() {
     this.#logger.info("Clear subscriptions");
-    this.#subscriptions.forEach((subscription) => {
-      subscription.removeAllListeners();
-    });
     this.#subscriptions.clear();
     this.#logger.info("Closing gRPC stream");
     this.#client.close();
@@ -977,13 +985,15 @@ var PubSubApiClient = class {
             reject(topicError);
           } else {
             const { schemaId } = response;
+            this.#logger.debug(
+              `${topicName} - Retrieving schema ID: ${schemaId}`
+            );
             let schema = this.#schemaChache.getFromId(schemaId);
             if (!schema) {
               schema = await this.#fetchEventSchemaFromIdWithClient(
                 schemaId
               );
             }
-            this.#logger.info(`Topic schema loaded: ${topicName}`);
             this.#schemaChache.set(schema);
             resolve(schema);
           }

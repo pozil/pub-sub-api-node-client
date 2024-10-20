@@ -13,7 +13,6 @@ node_modules
 jsconfig.json
 .vscode
 .idea
-package-lock.json
 
 # MacOS system files
 .DS_Store
@@ -25,4 +24,4 @@ ehthumbs.db
 $RECYCLE.BIN/
 
 # Sample code
-sample.js
+sample*

@@ -7,31 +7,17 @@
  */
 export default class SalesforceAuth {
     /**
+     * Builds a new Pub/Sub API client
+     * @param {Configuration} config the client configuration
+     * @param {Logger} logger a logger
+     */
+    constructor(config: Configuration, logger: Logger);
+    /**
      * Authenticates with the auth mode specified in configuration
      * @returns {ConnectionMetadata}
      */
-    static authenticate(): ConnectionMetadata;
-    /**
-     * Authenticates with the username/password flow
-     * @returns {ConnectionMetadata}
-     */
-    static "__#4@#authWithUsernamePassword"(): ConnectionMetadata;
-    /**
-     * Authenticates with the OAuth 2.0 client credentials flow
-     * @returns {ConnectionMetadata}
-     */
-    static "__#4@#authWithOAuthClientCredentials"(): ConnectionMetadata;
-    /**
-     * Authenticates with the OAuth 2.0 JWT bearer flow
-     * @returns {ConnectionMetadata}
-     */
-    static "__#4@#authWithJwtBearer"(): ConnectionMetadata;
-    /**
-     * Generic OAuth 2.0 connect method
-     * @param {string} body URL encoded body
-     * @returns {ConnectionMetadata} connection metadata
-     */
-    static "__#4@#authWithOAuth"(body: string): ConnectionMetadata;
+    authenticate(): ConnectionMetadata;
+    #private;
 }
 export type ConnectionMetadata = {
     accessToken: string;
