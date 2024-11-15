@@ -4,6 +4,7 @@ import { AuthType } from '../../src/utils/configuration.js';
 import SimpleFileLogger from '../helper/simpleFileLogger.js';
 import injectJasmineReporter from '../helper/reporter.js';
 import { sleep, waitFor } from '../helper/asyncUtilities.js';
+import { getConnectedPubSubApiClient } from '../helper/clientUtilities.js';
 
 // Load config from .env file
 dotenv.config();
@@ -72,17 +73,7 @@ describe('Client failures', function () {
         let isConnectionClosed = false;
 
         // Build PubSub client
-        client = new PubSubApiClient(
-            {
-                authType: AuthType.USERNAME_PASSWORD,
-                loginUrl: process.env.SALESFORCE_LOGIN_URL,
-                username: process.env.SALESFORCE_USERNAME,
-                password: process.env.SALESFORCE_PASSWORD,
-                userToken: process.env.SALESFORCE_TOKEN
-            },
-            logger
-        );
-        await client.connect();
+        client = await getConnectedPubSubApiClient(logger);
 
         // Prepare callback & send subscribe request
         const callback = (subscription, callbackType, data) => {

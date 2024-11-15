@@ -447,6 +447,9 @@ export default class PubSubApiClient {
                             subscription.info.receivedEventCount ===
                             subscription.info.requestedEventCount
                         ) {
+                            this.#logger.debug(
+                                `${topicName} - Reached last of ${subscription.info.requestedEventCount} requested event on channel.`
+                            );
                             if (isInfiniteEventRequest) {
                                 // Request additional events
                                 this.requestAdditionalEvents(
@@ -530,7 +533,7 @@ export default class PubSubApiClient {
         // Request additional events
         subscription.receivedEventCount = 0;
         subscription.requestedEventCount = numRequested;
-        subscription.write({
+        subscription.grpcSubscription.write({
             topicName,
             numRequested: numRequested
         });

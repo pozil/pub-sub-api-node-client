@@ -6,10 +6,11 @@ import {
     getSalesforceConnection,
     getSampleAccount,
     updateSampleAccount
-} from '../helper/sfUtility.js';
+} from '../helper/sfUtilities.js';
 import SimpleFileLogger from '../helper/simpleFileLogger.js';
 import injectJasmineReporter from '../helper/reporter.js';
 import { sleep, waitFor } from '../helper/asyncUtilities.js';
+import { getConnectedPubSubApiClient } from '../helper/clientUtilities.js';
 
 // Load config from .env file
 dotenv.config();
@@ -29,6 +30,10 @@ const PLATFORM_EVENT_TOPIC = '/event/Sample__e';
 const CHANGE_EVENT_TOPIC = '/data/AccountChangeEvent';
 
 describe('Client', function () {
+    /**
+     * Pub/Sub API client
+     * @type {PubSubApiClient}
+     */
     var client;
 
     afterEach(async () => {
@@ -323,6 +328,74 @@ describe('Client', function () {
             expect(receivedSub?.topicName).toBe(PLATFORM_EVENT_TOPIC);
             expect(receivedSub?.receivedEventCount).toBe(1);
             expect(receivedSub?.requestedEventCount).toBe(1);
+        },
+        EXTENDED_JASMINE_TIMEOUT
+    );
+
+    it(
+        'supports querying for additional events',
+        async function () {
+            let receivedEvents = [];
+            let hasRequestedAdditionalEvents = false;
+
+            // Build PubSub client
+            client = await getConnectedPubSubApiClient(logger);
+
+            // Prepare callback & send subscribe request
+            const callback = async (subscription, callbackType, data) => {
+                if (callbackType === 'event') {
+                    receivedEvents.push(data);
+                } else if (callbackType === 'lastEvent') {
+                    // Request another event, the first time we receive the "last event" callback
+                    if (!hasRequestedAdditionalEvents) {
+                        client.requestAdditionalEvents(
+                            subscription.topicName,
+                            1
+                        );
+                        hasRequestedAdditionalEvents = true;
+                        // Wait for request to be effective
+                        await sleep(1000);
+                    }
+                }
+            };
+            client.subscribe(PLATFORM_EVENT_TOPIC, callback, 1);
+
+            // Wait for subscribe to be effective
+            await sleep(1000);
+
+            // Prepare platform event payload
+            const payload = {
+                CreatedDate: new Date().getTime(), // Non-null value required but there's no validity check performed on this field
+                CreatedById: '00558000000yFyDAAU', // Valid user ID
+                Message__c: { string: 'Event 1/2' } // Field is nullable so we need to specify the 'string' type
+            };
+
+            // Publish 1st platform event
+            let publishResult = await client.publish(
+                PLATFORM_EVENT_TOPIC,
+                payload
+            );
+            expect(publishResult.replayId).toBeDefined();
+            const publishedReplayId1 = publishResult.replayId;
+            // Publish 2nd platform event
+            payload.Message__c.string = 'Event 2/2';
+            publishResult = await client.publish(PLATFORM_EVENT_TOPIC, payload);
+            expect(publishResult.replayId).toBeDefined();
+            const publishedReplayId2 = publishResult.replayId;
+
+            // Wait for event to be received
+            await waitFor(5000, () => receivedEvents.length === 2);
+
+            // Check received events
+            expect(hasRequestedAdditionalEvents)
+                .withContext('Did not request additional events')
+                .toBeTrue();
+            expect(
+                receivedEvents.some((e) => e.replayId === publishedReplayId1)
+            ).toBeTrue();
+            expect(
+                receivedEvents.some((e) => e.replayId === publishedReplayId2)
+            ).toBeTrue();
         },
         EXTENDED_JASMINE_TIMEOUT
     );
