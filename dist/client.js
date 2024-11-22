@@ -857,8 +857,8 @@ var PubSubApiClient = class {
         `Failed to request additional events for topic ${topicName}, no active subscription found.`
       );
     }
-    subscription.receivedEventCount = 0;
-    subscription.requestedEventCount = numRequested;
+    subscription.info.receivedEventCount = 0;
+    subscription.info.requestedEventCount = numRequested;
     subscription.grpcSubscription.write({
       topicName,
       numRequested
