@@ -531,8 +531,8 @@ export default class PubSubApiClient {
         }
 
         // Request additional events
-        subscription.receivedEventCount = 0;
-        subscription.requestedEventCount = numRequested;
+        subscription.info.receivedEventCount = 0;
+        subscription.info.requestedEventCount = numRequested;
         subscription.grpcSubscription.write({
             topicName,
             numRequested: numRequested
