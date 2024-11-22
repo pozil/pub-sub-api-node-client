@@ -1,6 +1,6 @@
 {
     "name": "salesforce-pubsub-api-client",
-    "version": "5.0.1",
+    "version": "5.0.2",
     "type": "module",
     "description": "A node client for the Salesforce Pub/Sub API",
     "author": "pozil",
@@ -34,9 +34,9 @@
     "devDependencies": {
         "@chialab/esbuild-plugin-meta-url": "^0.18.2",
         "dotenv": "^16.4.5",
-        "eslint": "^9.14.0",
+        "eslint": "^9.15.0",
         "eslint-plugin-jasmine": "^4.2.2",
-        "husky": "^9.1.6",
+        "husky": "^9.1.7",
         "jasmine": "^5.4.0",
         "lint-staged": "^15.2.10",
         "prettier": "^3.3.3",
