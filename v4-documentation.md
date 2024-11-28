@@ -3,24 +3,24 @@
 > [!INFO]
 > This documentation is kept to support a legacy version. Please consider upgrading to the latest version.
 
--   [Installation and Configuration](#installation-and-configuration)
-    -   [User supplied authentication](#user-supplied-authentication)
-    -   [Username/password flow](#usernamepassword-flow)
-    -   [OAuth 2.0 client credentials flow (client_credentials)](#oauth-20-client-credentials-flow-client_credentials)
-    -   [OAuth 2.0 JWT bearer flow](#oauth-20-jwt-bearer-flow)
--   [Basic Example](#basic-example)
--   [Other Examples](#other-examples)
-    -   [Publish a platform event](#publish-a-platform-event)
-    -   [Subscribe with a replay ID](#subscribe-with-a-replay-id)
-    -   [Subscribe to past events in retention window](#subscribe-to-past-events-in-retention-window)
-    -   [Work with flow control for high volumes of events](#work-with-flow-control-for-high-volumes-of-events)
-    -   [Handle gRPC stream lifecycle events](#handle-grpc-stream-lifecycle-events)
-    -   [Use a custom logger](#use-a-custom-logger)
--   [Common Issues](#common-issues)
--   [Reference](#reference)
-    -   [PubSubApiClient](#pubsubapiclient)
-    -   [PubSubEventEmitter](#pubsubeventemitter)
-    -   [EventParseError](#eventparseerror)
+- [Installation and Configuration](#installation-and-configuration)
+    - [User supplied authentication](#user-supplied-authentication)
+    - [Username/password flow](#usernamepassword-flow)
+    - [OAuth 2.0 client credentials flow (client_credentials)](#oauth-20-client-credentials-flow-client_credentials)
+    - [OAuth 2.0 JWT bearer flow](#oauth-20-jwt-bearer-flow)
+- [Basic Example](#basic-example)
+- [Other Examples](#other-examples)
+    - [Publish a platform event](#publish-a-platform-event)
+    - [Subscribe with a replay ID](#subscribe-with-a-replay-id)
+    - [Subscribe to past events in retention window](#subscribe-to-past-events-in-retention-window)
+    - [Work with flow control for high volumes of events](#work-with-flow-control-for-high-volumes-of-events)
+    - [Handle gRPC stream lifecycle events](#handle-grpc-stream-lifecycle-events)
+    - [Use a custom logger](#use-a-custom-logger)
+- [Common Issues](#common-issues)
+- [Reference](#reference)
+    - [PubSubApiClient](#pubsubapiclient)
+    - [PubSubEventEmitter](#pubsubeventemitter)
+    - [EventParseError](#eventparseerror)
 
 ## Installation and Configuration
 
@@ -30,10 +30,10 @@ Create a `.env` file at the root of the project for configuration.
 
 Pick one of these authentication flows and fill the relevant configuration:
 
--   User supplied authentication
--   Username/password authentication (recommended for tests)
--   OAuth 2.0 client credentials
--   OAuth 2.0 JWT Bearer (recommended for production)
+- User supplied authentication
+- Username/password authentication (recommended for tests)
+- OAuth 2.0 client credentials
+- OAuth 2.0 JWT Bearer (recommended for production)
 
 > [!TIP]
 > The default client logger is fine for a test environment but you'll want to switch to a [custom logger](#use-a-custom-logger) with asynchronous logging for increased performance.

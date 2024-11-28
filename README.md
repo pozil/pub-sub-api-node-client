@@ -4,29 +4,29 @@
 
 See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-api) and the [documentation](https://developer.salesforce.com/docs/platform/pub-sub-api/guide/intro.html) for more information on the Salesforce gRPC-based Pub/Sub API.
 
--   [v4 to v5 Migration](#v4-to-v5-migration)
--   [v4 Documentation](v4-documentation.md)
--   [Installation and Configuration](#installation-and-configuration)
-    -   [Authentication](#authentication)
-        -   [User supplied authentication](#user-supplied-authentication)
-        -   [Username/password flow](#usernamepassword-flow)
-        -   [OAuth 2.0 client credentials flow (client_credentials)](#oauth-20-client-credentials-flow-client_credentials)
-        -   [OAuth 2.0 JWT bearer flow](#oauth-20-jwt-bearer-flow)
-    -   [Logging](#logging)
--   [Quick Start Example](#quick-start-example)
--   [Other Examples](#other-examples)
-    -   [Publish a platform event](#publish-a-platform-event)
-    -   [Subscribe with a replay ID](#subscribe-with-a-replay-id)
-    -   [Subscribe to past events in retention window](#subscribe-to-past-events-in-retention-window)
-    -   [Work with flow control for high volumes of events](#work-with-flow-control-for-high-volumes-of-events)
-    -   [Handle gRPC stream lifecycle events](#handle-grpc-stream-lifecycle-events)
--   [Common Issues](#common-issues)
--   [Reference](#reference)
-    -   [PubSubApiClient](#pubsubapiclient)
-    -   [SubscribeCallback](#subscribecallback)
-    -   [SubscriptionInfo](#subscriptioninfo)
-    -   [EventParseError](#eventparseerror)
-    -   [Configuration](#configuration)
+- [v4 to v5 Migration](#v4-to-v5-migration)
+- [v4 Documentation](v4-documentation.md)
+- [Installation and Configuration](#installation-and-configuration)
+    - [Authentication](#authentication)
+        - [User supplied authentication](#user-supplied-authentication)
+        - [Username/password flow](#usernamepassword-flow)
+        - [OAuth 2.0 client credentials flow (client_credentials)](#oauth-20-client-credentials-flow-client_credentials)
+        - [OAuth 2.0 JWT bearer flow](#oauth-20-jwt-bearer-flow)
+    - [Logging](#logging)
+- [Quick Start Example](#quick-start-example)
+- [Other Examples](#other-examples)
+    - [Publish a platform event](#publish-a-platform-event)
+    - [Subscribe with a replay ID](#subscribe-with-a-replay-id)
+    - [Subscribe to past events in retention window](#subscribe-to-past-events-in-retention-window)
+    - [Work with flow control for high volumes of events](#work-with-flow-control-for-high-volumes-of-events)
+    - [Handle gRPC stream lifecycle events](#handle-grpc-stream-lifecycle-events)
+- [Common Issues](#common-issues)
+- [Reference](#reference)
+    - [PubSubApiClient](#pubsubapiclient)
+    - [SubscribeCallback](#subscribecallback)
+    - [SubscriptionInfo](#subscriptioninfo)
+    - [EventParseError](#eventparseerror)
+    - [Configuration](#configuration)
 
 ## v4 to v5 Migration
 
@@ -37,13 +37,13 @@ See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-ap
 
 In v4 and earlier versions of this client:
 
--   you specify the configuration in a `.env` file with specific property names.
--   you connect with either the `connect()` or `connectWithAuth()` method depending on the authentication flow.
+- you specify the configuration in a `.env` file with specific property names.
+- you connect with either the `connect()` or `connectWithAuth()` method depending on the authentication flow.
 
 In v5:
 
--   you pass your configuration with an object in the client constructor. The `.env` file is no longer a requirement, you are free to store your configuration where you want.
--   you connect with a unique `connect()` method.
+- you pass your configuration with an object in the client constructor. The `.env` file is no longer a requirement, you are free to store your configuration where you want.
+- you connect with a unique `connect()` method.
 
 ### Event handling
 
@@ -80,10 +80,10 @@ Install the client library with `npm install salesforce-pubsub-api-client`.
 
 Pick one of these authentication flows and pass the relevant configuration to the `PubSubApiClient` constructor:
 
--   [User supplied authentication](#user-supplied-authentication)
--   [Username/password flow](#usernamepassword-flow) (recommended for tests)
--   [OAuth 2.0 client flow](#oauth-20-client-credentials-flow-client_credentials)
--   [OAuth 2.0 JWT Bearer flow](#oauth-20-jwt-bearer-flow) (recommended for production)
+- [User supplied authentication](#user-supplied-authentication)
+- [Username/password flow](#usernamepassword-flow) (recommended for tests)
+- [OAuth 2.0 client flow](#oauth-20-client-credentials-flow-client_credentials)
+- [OAuth 2.0 JWT Bearer flow](#oauth-20-jwt-bearer-flow) (recommended for production)
 
 #### User supplied authentication
 
