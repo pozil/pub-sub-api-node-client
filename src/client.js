@@ -421,7 +421,9 @@ export default class PubSubApiClient {
                             // Report event parsing error with replay ID if possible
                             let replayId;
                             try {
-                                replayId = decodeReplayId(event.replayId);
+                                if (event.replayId) {
+                                    replayId = decodeReplayId(event.replayId);
+                                }
                                 // eslint-disable-next-line no-empty, no-unused-vars
                             } catch (error) {}
                             const message = replayId
