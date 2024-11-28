@@ -796,7 +796,9 @@ var PubSubApiClient = class {
             } catch (error) {
               let replayId;
               try {
-                replayId = decodeReplayId(event.replayId);
+                if (event.replayId) {
+                  replayId = decodeReplayId(event.replayId);
+                }
               } catch (error2) {
               }
               const message = replayId ? `Failed to parse event with replay ID ${replayId}` : `Failed to parse event with unknown replay ID (latest replay ID was ${latestReplayId})`;
