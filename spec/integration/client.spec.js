@@ -1,7 +1,7 @@
 import fs from 'fs';
 import * as dotenv from 'dotenv';
 import PubSubApiClient from '../../src/client.js';
-import { AuthType } from '../../src/utils/configuration.js';
+import { AuthType } from '../../src/utils/types.js';
 import {
     getSalesforceConnection,
     getSampleAccount,

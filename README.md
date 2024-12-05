@@ -18,6 +18,7 @@ See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-ap
     - [Publish a platform event](#publish-a-platform-event)
     - [Subscribe with a replay ID](#subscribe-with-a-replay-id)
     - [Subscribe to past events in retention window](#subscribe-to-past-events-in-retention-window)
+    - [Subscribe using a managed subscription](#subscribe-using-a-managed-subscription)
     - [Work with flow control for high volumes of events](#work-with-flow-control-for-high-volumes-of-events)
     - [Handle gRPC stream lifecycle events](#handle-grpc-stream-lifecycle-events)
 - [Common Issues](#common-issues)
@@ -383,6 +384,31 @@ await client.subscribeFromEarliestEvent(
 );
 ```
 
+### Subscribe using a managed subscription
+
+You can turn your Pub/Sub client application stateless by delegating the tracking of replay IDs to the server thanks to [managed event subscriptions](https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html).
+
+1. [Create a managed event subscription](https://developer.salesforce.com/docs/platform/pub-sub-api/guide/managed-sub.html#configuring-a-managed-event-subscription) using the tooling API. You can use API request templates from the [Salesforce Platform APIs](https://www.postman.com/salesforce-developers/salesforce-developers/folder/00bu8y3/managed-event-subscriptions) Postman collection to do so.
+1. Subscribe to 3 events from a managed event subscription (`Managed_Sample_PE` in this expample):
+    ```js
+    await client.subscribeWithManagedSubscription(
+        'Managed_Sample_PE',
+        subscribeCallback,
+        3
+    );
+    ```
+1. Using the subscription information sent in the subscribe callback, frequently commit the last replay ID that you receveive:
+    ```js
+    client.commitReplayId(
+        subscription.subscriptionId,
+        subscription.lastReplayId
+    );
+    ```
+1. Optionnaly, request additional events to be sent (3 more in this example):
+    ```js
+    client.requestAdditionalManagedEvents(subscription.subscriptionId, 3);
+    ```
+
 ### Work with flow control for high volumes of events
 
 When working with high volumes of events you can control the incoming flow of events by requesting a limited batch of events. This event flow control ensures that the client doesn’t get overwhelmed by accepting more events that it can handle if there is a spike in event publishing.
@@ -490,15 +516,26 @@ Builds a new Pub/Sub API client.
 
 Closes the gRPC connection. The client will no longer receive events for any topic.
 
+#### `commitReplayId(subscriptionId, replayId) → string`
+
+Commits a replay ID on a managed subscription.
+
+Returns: commit request UUID.
+
+| Name             | Type   | Description             |
+| ---------------- | ------ | ----------------------- |
+| `subscriptionId` | string | managed subscription ID |
+| `replayId`       | number | event replay ID         |
+
 #### `async connect() → {Promise.<void>}`
 
 Authenticates with Salesforce then connects to the Pub/Sub API.
 
 Returns: Promise that resolves once the connection is established.
 
-#### `async getConnectivityState() → Promise<connectivityState>}`
+#### `async getConnectivityState() → {Promise<connectivityState>}`
 
-Get connectivity state from current channel.
+Gets the gRPC connectivity state from the current channel.
 
 Returns: Promise that holds the channel's [connectivity state](https://grpc.github.io/grpc/node/grpc.html#.connectivityState).
 
@@ -545,6 +582,18 @@ Subscribes to a topic and retrieves past events starting from a replay ID.
 | `numRequested`      | number                                  | number of events requested. If `null`, the client keeps the subscription alive forever. |
 | `replayId`          | number                                  | replay ID                                                                               |
 
+#### `async subscribeWithManagedSubscription(subscriptionIdOrName, subscribeCallback, [numRequested])`
+
+Subscribes to a topic thanks to a managed subscription.
+
+Throws an error if the managed subscription does not exist or is not in the `RUN` state.
+
+| Name                   | Type                                    | Description                                                                                                    |
+| ---------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `subscriptionIdOrName` | string                                  | managed subscription ID or developer name                                                                      |
+| `subscribeCallback`    | [SubscribeCallback](#subscribecallback) | subscribe callback function                                                                                    |
+| `numRequested`         | number                                  | optional number of events requested. If not supplied or null, the client keeps the subscription alive forever. |
+
 #### `requestAdditionalEvents(topicName, numRequested)`
 
 Request additional events on an existing subscription.
@@ -553,6 +602,15 @@ Request additional events on an existing subscription.
 | -------------- | ------ | --------------------------- |
 | `topicName`    | string | name of the topic.          |
 | `numRequested` | number | number of events requested. |
+
+#### `requestAdditionalManagedEvents(subscriptionId, numRequested)`
+
+Request additional events on an existing managed subscription.
+
+| Name             | Type   | Description                 |
+| ---------------- | ------ | --------------------------- |
+| `subscriptionId` | string | managed subscription ID.    |
+| `numRequested`   | number | number of events requested. |
 
 ### SubscribeCallback
 
@@ -581,12 +639,15 @@ Callback types:
 
 Holds the information related to a subscription.
 
-| Name                  | Type   | Description                                                                    |
-| --------------------- | ------ | ------------------------------------------------------------------------------ |
-| `topicName`           | string | topic name for this subscription.                                              |
-| `requestedEventCount` | number | number of events that were requested when subscribing.                         |
-| `receivedEventCount`  | number | the number of events that were received since subscribing.                     |
-| `lastReplayId`        | number | replay ID of the last processed event or `null` if no event was processed yet. |
+| Name                  | Type    | Description                                                                    |
+| --------------------- | ------- | ------------------------------------------------------------------------------ |
+| `isManaged`           | boolean | whether this is a managed event subscription or not.                           |
+| `topicName`           | string  | topic name for this subscription.                                              |
+| `subscriptionId`      | string  | managed subscription ID. Undefined for regular subscriptions.                  |
+| `subscriptionName`    | string  | managed subscription name. Undefined for regular subscriptions.                |
+| `requestedEventCount` | number  | number of events that were requested when subscribing.                         |
+| `receivedEventCount`  | number  | the number of events that were received since subscribing.                     |
+| `lastReplayId`        | number  | replay ID of the last processed event or `null` if no event was processed yet. |
 
 ### EventParseError
 

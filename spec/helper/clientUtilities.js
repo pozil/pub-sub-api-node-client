@@ -1,5 +1,5 @@
 import PubSubApiClient from '../../src/client.js';
-import { AuthType } from '../../src/utils/configuration.js';
+import { AuthType } from '../../src/utils/types.js';
 
 /**
  * Prepares a connected PubSub API client
