@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import jsforce from 'jsforce';
 import { fetch } from 'undici';
-import { AuthType } from './configuration.js';
+import { AuthType } from './types.js';
 
 /**
  * @typedef {Object} ConnectionMetadata

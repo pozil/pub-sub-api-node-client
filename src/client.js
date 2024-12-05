@@ -10,95 +10,30 @@ import protoLoader from '@grpc/proto-loader';
 import { connectivityState } from '@grpc/grpc-js';
 
 import SchemaCache from './utils/schemaCache.js';
+import {
+    AuthType,
+    SubscribeCallbackType,
+    EventSubscriptionAdminState
+} from './utils/types.js';
 import EventParseError from './utils/eventParseError.js';
 import { CustomLongAvroType } from './utils/avroHelper.js';
-import { AuthType, Configuration } from './utils/configuration.js';
+import Configuration from './utils/configuration.js';
 import {
     parseEvent,
     encodeReplayId,
     decodeReplayId,
     toJsonString
 } from './utils/eventParser.js';
+import { getManagedSubscription } from './utils/toolingApiHelper.js';
 import SalesforceAuth from './utils/auth.js';
 
 /**
- * Enum for subscripe callback type values
- * @enum {string}
- */
-const SubscribeCallbackType = {
-    EVENT: 'event',
-    LAST_EVENT: 'lastEvent',
-    ERROR: 'error',
-    END: 'end',
-    GRPC_STATUS: 'grpcStatus',
-    GRPC_KEEP_ALIVE: 'grpcKeepAlive'
-};
-
-/**
- * @typedef {Object} PublishResult
- * @property {number} replayId
- * @property {string} correlationKey
- * @global
- */
-
-/**
- * @callback SubscribeCallback
- * @param {SubscriptionInfo} subscription
- * @param {SubscribeCallbackType} callbackType
- * @param {Object} [data]
- * @global
- */
-
-/**
- * @typedef {Object} Subscription
- * @property {SubscriptionInfo} info
- * @property {Object} grpcSubscription
- * @property {SubscribeCallback} subscribeCallback
- * @protected
- */
-
-/**
- * @typedef {Object} SubscriptionInfo
- * @property {string} topicName
- * @property {number} requestedEventCount
- * @property {number} receivedEventCount
- * @property {number} lastReplayId
- * @protected
- */
-
-/**
- * @typedef {Object} Configuration
- * @property {AuthType} authType
- * @property {string} pubSubEndpoint
- * @property {string} loginUrl
- * @property {string} username
- * @property {string} password
- * @property {string} userToken
- * @property {string} clientId
- * @property {string} clientSecret
- * @property {string} privateKey
- * @property {string} accessToken
- * @property {string} instanceUrl
- * @property {string} organizationId
- * @protected
- */
-
-/**
- * @typedef {Object} Logger
- * @property {Function} debug
- * @property {Function} info
- * @property {Function} error
- * @property {Function} warn
- * @protected
- */
-
-/**
- * @typedef {Object} SubscribeRequest
- * @property {string} topicName
- * @property {number} numRequested
- * @property {number} [replayPreset]
- * @property {number} [replayId]
- * @protected
+ * @typedef {import('./utils/types.js').PublishResult} PublishResult
+ * @typedef {import('./utils/types.js').Subscription} Subscription
+ * @typedef {import('./utils/types.js').SubscriptionInfo} SubscriptionInfo
+ * @typedef {import('./utils/types.js').Configuration} Configuration
+ * @typedef {import('./utils/types.js').Logger} Logger
+ * @typedef {import('./utils/types.js').SubscribeRequest} SubscribeRequest
  */
 
 /**
@@ -138,6 +73,12 @@ export default class PubSubApiClient {
     #subscriptions;
 
     /**
+     * Map of managed subscriptions indexed by subscription ID
+     * @type {Map<string,Subscription>}
+     */
+    #managedSubscriptions;
+
+    /**
      * Logger
      * @type {Logger}
      */
@@ -152,6 +93,7 @@ export default class PubSubApiClient {
         this.#logger = logger;
         this.#schemaChache = new SchemaCache();
         this.#subscriptions = new Map();
+        this.#managedSubscriptions = new Map();
         // Check and load config
         try {
             this.#config = Configuration.load(config);
@@ -235,7 +177,7 @@ export default class PubSubApiClient {
     }
 
     /**
-     * Get connectivity state from current channel.
+     * Gets the gRPC connectivity state from the current channel.
      * @returns {Promise<connectivityState>} Promise that holds channel's connectivity information {@link connectivityState}
      * @memberof PubSubApiClient.prototype
      */
@@ -325,22 +267,8 @@ export default class PubSubApiClient {
                 subscribeRequest.numRequested = numRequested =
                     MAX_EVENT_BATCH_SIZE;
             } else {
-                if (typeof numRequested !== 'number') {
-                    throw new Error(
-                        `Expected a number type for number of requested events but got ${typeof numRequested}`
-                    );
-                }
-                if (!Number.isSafeInteger(numRequested) || numRequested < 1) {
-                    throw new Error(
-                        `Expected an integer greater than 1 for number of requested events but got ${numRequested}`
-                    );
-                }
-                if (numRequested > MAX_EVENT_BATCH_SIZE) {
-                    this.#logger.warn(
-                        `The number of requested events for ${topicName} exceeds max event batch size (${MAX_EVENT_BATCH_SIZE}).`
-                    );
-                    subscribeRequest.numRequested = MAX_EVENT_BATCH_SIZE;
-                }
+                subscribeRequest.numRequested =
+                    this.#validateRequestedEventCount(topicName, numRequested);
             }
             // Check client connection
             if (!this.#client) {
@@ -359,6 +287,8 @@ export default class PubSubApiClient {
                 subscription.info.receivedEventCount = 0;
                 subscription.info.requestedEventCount =
                     subscribeRequest.numRequested;
+                subscription.info.isInfiniteEventRequest =
+                    isInfiniteEventRequest;
             } else {
                 // Establish new gRPC subscription
                 this.#logger.debug(
@@ -367,6 +297,7 @@ export default class PubSubApiClient {
                 grpcSubscription = this.#client.Subscribe();
                 subscription = {
                     info: {
+                        isManaged: false,
                         topicName,
                         requestedEventCount: subscribeRequest.numRequested,
                         receivedEventCount: 0,
@@ -378,134 +309,10 @@ export default class PubSubApiClient {
                 this.#subscriptions.set(topicName, subscription);
             }
 
-            // Listen to new events
-            grpcSubscription.on('data', async (data) => {
-                const latestReplayId = decodeReplayId(data.latestReplayId);
-                subscription.info.lastReplayId = latestReplayId;
-                if (data.events) {
-                    this.#logger.info(
-                        `${topicName} - Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
-                    );
-                    for (const event of data.events) {
-                        try {
-                            this.#logger.debug(
-                                `${topicName} - Raw event: ${toJsonString(event)}`
-                            );
-                            // Load event schema from cache or from the gRPC client
-                            this.#logger.debug(
-                                `${topicName} - Retrieving schema ID: ${event.event.schemaId}`
-                            );
-                            const schema = await this.#getEventSchemaFromId(
-                                event.event.schemaId
-                            );
-                            // Retrieve subscription
-                            const subscription =
-                                this.#subscriptions.get(topicName);
-                            if (!subscription) {
-                                throw new Error(
-                                    `Failed to retrieve subscription for topic ${topicName}.`
-                                );
-                            }
-                            subscription.info.receivedEventCount++;
-                            // Parse event thanks to schema
-                            const parsedEvent = parseEvent(schema, event);
-                            this.#logger.debug(
-                                `${topicName} - Parsed event: ${toJsonString(parsedEvent)}`
-                            );
-                            subscribeCallback(
-                                subscription.info,
-                                SubscribeCallbackType.EVENT,
-                                parsedEvent
-                            );
-                        } catch (error) {
-                            // Report event parsing error with replay ID if possible
-                            let replayId;
-                            try {
-                                if (event.replayId) {
-                                    replayId = decodeReplayId(event.replayId);
-                                }
-                                // eslint-disable-next-line no-empty, no-unused-vars
-                            } catch (error) {}
-                            const message = replayId
-                                ? `Failed to parse event with replay ID ${replayId}`
-                                : `Failed to parse event with unknown replay ID (latest replay ID was ${latestReplayId})`;
-                            const parseError = new EventParseError(
-                                message,
-                                error,
-                                replayId,
-                                event,
-                                latestReplayId
-                            );
-                            subscribeCallback(
-                                subscription.info,
-                                SubscribeCallbackType.ERROR,
-                                parseError
-                            );
-                            this.#logger.error(parseError);
-                        }
+            // Prepare event handling logic
+            this.#injectEventHandlingLogic(subscription, subscribeCallback);
 
-                        // Handle last requested event
-                        if (
-                            subscription.info.receivedEventCount ===
-                            subscription.info.requestedEventCount
-                        ) {
-                            this.#logger.debug(
-                                `${topicName} - Reached last of ${subscription.info.requestedEventCount} requested event on channel.`
-                            );
-                            if (isInfiniteEventRequest) {
-                                // Request additional events
-                                this.requestAdditionalEvents(
-                                    subscription.info.topicName,
-                                    subscription.info.requestedEventCount
-                                );
-                            } else {
-                                // Emit a 'lastevent' event when reaching the last requested event count
-                                subscribeCallback(
-                                    subscription.info,
-                                    SubscribeCallbackType.LAST_EVENT
-                                );
-                            }
-                        }
-                    }
-                } else {
-                    // If there are no events then, every 270 seconds (or less) the server publishes a keepalive message with
-                    // the latestReplayId and pendingNumRequested (the number of events that the client is still waiting for)
-                    this.#logger.debug(
-                        `${topicName} - Received keepalive message. Latest replay ID: ${latestReplayId}`
-                    );
-                    data.latestReplayId = latestReplayId; // Replace original value with decoded value
-                    subscribeCallback(
-                        subscription.info,
-                        SubscribeCallbackType.GRPC_KEEP_ALIVE
-                    );
-                }
-            });
-            grpcSubscription.on('end', () => {
-                this.#subscriptions.delete(topicName);
-                this.#logger.info(`${topicName} - gRPC stream ended`);
-                subscribeCallback(subscription.info, SubscribeCallbackType.END);
-            });
-            grpcSubscription.on('error', (error) => {
-                this.#logger.error(
-                    `${topicName} - gRPC stream error: ${JSON.stringify(error)}`
-                );
-                subscribeCallback(
-                    subscription.info,
-                    SubscribeCallbackType.ERROR,
-                    error
-                );
-            });
-            grpcSubscription.on('status', (status) => {
-                this.#logger.info(
-                    `${topicName} - gRPC stream status: ${JSON.stringify(status)}`
-                );
-                subscribeCallback(
-                    subscription.info,
-                    SubscribeCallbackType.GRPC_STATUS,
-                    status
-                );
-            });
-
+            // Write subscribe request
             grpcSubscription.write(subscribeRequest);
             this.#logger.info(
                 `${topicName} - Subscribe request sent for ${numRequested} events`
@@ -519,16 +326,124 @@ export default class PubSubApiClient {
     }
 
     /**
+     * Subscribes to a topic thanks to a managed subscription.
+     * @param {string} subscriptionIdOrName managed subscription ID or developer name
+     * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
+     * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
+     * @throws Throws an error if the managed subscription does not exist or is not in the `RUN` state.
+     * @memberof PubSubApiClient.prototype
+     */
+    async subscribeWithManagedSubscription(
+        subscriptionIdOrName,
+        subscribeCallback,
+        numRequested = null
+    ) {
+        this.#logger.debug(
+            `Preparing managed subscribe request: ${JSON.stringify({ subscriptionIdOrName, numRequested })}`
+        );
+
+        // Get managed subscription
+        const managedSubscription = await getManagedSubscription(
+            this.#config.instanceUrl,
+            this.#config.accessToken,
+            subscriptionIdOrName
+        );
+        const subscriptionId = managedSubscription.Id;
+        const subscriptionName = managedSubscription.DeveloperName;
+        const subscriptionLabel = `${subscriptionName} (${subscriptionId})`;
+        const { topicName, state } = managedSubscription.Metadata;
+        this.#logger.info(
+            `Retrieved managed subscription ${subscriptionLabel}: ${JSON.stringify(managedSubscription.Metadata)}`
+        );
+        // Check subscription state
+        if (state !== EventSubscriptionAdminState.RUN) {
+            throw new Error(
+                `Can't subscribe to managed subscription ${subscriptionLabel}: subscription is in ${state} state`
+            );
+        }
+
+        try {
+            // Check number of requested events
+            let isInfiniteEventRequest = false;
+            if (numRequested === null || numRequested === undefined) {
+                isInfiniteEventRequest = true;
+                numRequested = MAX_EVENT_BATCH_SIZE;
+            } else {
+                numRequested = this.#validateRequestedEventCount(
+                    topicName,
+                    numRequested
+                );
+            }
+            // Check client connection
+            if (!this.#client) {
+                throw new Error('Pub/Sub API client is not connected.');
+            }
+
+            // Check for an existing subscription
+            let subscription = this.#managedSubscriptions.get(subscriptionId);
+            let grpcSubscription;
+            if (subscription) {
+                // Reuse existing gRPC connection and reset event counters
+                this.#logger.debug(
+                    `${topicName} - Reusing cached gRPC subscription`
+                );
+                grpcSubscription = subscription.grpcSubscription;
+                subscription.info.receivedEventCount = 0;
+                subscription.info.requestedEventCount = numRequested;
+                subscription.info.isInfiniteEventRequest =
+                    isInfiniteEventRequest;
+            } else {
+                // Establish new gRPC subscription
+                this.#logger.debug(
+                    `${topicName} - Establishing new gRPC subscription`
+                );
+                grpcSubscription = this.#client.ManagedSubscribe();
+                subscription = {
+                    info: {
+                        isManaged: true,
+                        topicName,
+                        subscriptionId,
+                        subscriptionName,
+                        requestedEventCount: numRequested,
+                        receivedEventCount: 0,
+                        lastReplayId: null
+                    },
+                    grpcSubscription,
+                    subscribeCallback
+                };
+                this.#managedSubscriptions.set(subscriptionId, subscription);
+            }
+
+            // Prepare event handling logic
+            this.#injectEventHandlingLogic(subscription, subscribeCallback);
+
+            // Write subscribe request
+            grpcSubscription.write({
+                subscriptionId,
+                numRequested
+            });
+            this.#logger.info(
+                `${topicName} - Managed subscribe request sent to ${subscriptionLabel} for ${numRequested} events`
+            );
+        } catch (error) {
+            throw new Error(
+                `Failed to subscribe to managed subscription ${subscriptionLabel}`,
+                { cause: error }
+            );
+        }
+    }
+
+    /**
      * Request additional events on an existing subscription.
      * @param {string} topicName topic name
-     * @param {number} numRequested number of events requested.
+     * @param {number} numRequested number of events requested
      */
     requestAdditionalEvents(topicName, numRequested) {
-        // Retrieve existing subscription
+        // Retrieve subscription
         const subscription = this.#subscriptions.get(topicName);
         if (!subscription) {
             throw new Error(
-                `Failed to request additional events for topic ${topicName}, no active subscription found.`
+                `Failed to request additional events for topic ${topicName}: no active subscription found.`
             );
         }
 
@@ -537,11 +452,69 @@ export default class PubSubApiClient {
         subscription.info.requestedEventCount = numRequested;
         subscription.grpcSubscription.write({
             topicName,
-            numRequested: numRequested
+            numRequested
         });
         this.#logger.debug(
             `${topicName} - Resubscribing to a batch of ${numRequested} events`
         );
+    }
+
+    /**
+     * Request additional events on an existing managed subscription.
+     * @param {string} subscriptionId managed subscription ID
+     * @param {number} numRequested number of events requested
+     */
+    requestAdditionalManagedEvents(subscriptionId, numRequested) {
+        // Retrieve subscription
+        const subscription = this.#managedSubscriptions.get(subscriptionId);
+        if (!subscription) {
+            throw new Error(
+                `Failed to request additional events for managed subscription with ID ${subscriptionId}: no active subscription found.`
+            );
+        }
+
+        // Request additional events
+        subscription.info.receivedEventCount = 0;
+        subscription.info.requestedEventCount = numRequested;
+        subscription.grpcSubscription.write({
+            subscriptionId,
+            numRequested
+        });
+        const { subscriptionName } = subscription.info;
+        this.#logger.debug(
+            `${subscriptionName} (${subscriptionId}) - Resubscribing to a batch of ${numRequested} events`
+        );
+    }
+
+    /**
+     * Commits a replay ID on a managed subscription.
+     * @param {string} subscriptionId managed subscription ID
+     * @param {number} replayId event replay ID
+     * @returns {string} commit request UUID
+     */
+    commitReplayId(subscriptionId, replayId) {
+        // Retrieve subscription
+        const subscription = this.#managedSubscriptions.get(subscriptionId);
+        if (!subscription) {
+            throw new Error(
+                `Failed to commit a replay ID on managed subscription with ID ${subscriptionId}: no active subscription found.`
+            );
+        }
+
+        // Commit replay ID
+        const commitRequestId = crypto.randomUUID();
+        subscription.grpcSubscription.write({
+            subscriptionId,
+            commitReplayIdRequest: {
+                commitRequestId,
+                replayId: encodeReplayId(replayId)
+            }
+        });
+        const { subscriptionName } = subscription.info;
+        this.#logger.debug(
+            `${subscriptionName} (${subscriptionId}) - Sent replay ID commit request (request ID: ${commitRequestId}, replay ID: ${replayId})`
+        );
+        return commitRequestId;
     }
 
     /**
@@ -602,9 +575,166 @@ export default class PubSubApiClient {
     close() {
         this.#logger.info('Clear subscriptions');
         this.#subscriptions.clear();
-
+        this.#managedSubscriptions.clear();
         this.#logger.info('Closing gRPC stream');
         this.#client?.close();
+    }
+
+    /**
+     * Injects the standard event handling logic on a subscription
+     * @param {Subscription} subscription
+     * @param {SubscribeCallback} subscribeCallback
+     */
+    #injectEventHandlingLogic(subscription, subscribeCallback) {
+        const { grpcSubscription } = subscription;
+        const { topicName, subscriptionId, subscriptionName, isManaged } =
+            subscription.info;
+        const logLabel = subscription.info.isManaged
+            ? `${subscriptionName} (${subscriptionId})`
+            : topicName;
+        // Listen to new events
+        grpcSubscription.on('data', async (data) => {
+            const latestReplayId = decodeReplayId(data.latestReplayId);
+            subscription.info.lastReplayId = latestReplayId;
+            if (data.events) {
+                this.#logger.info(
+                    `${logLabel} - Received ${data.events.length} events, latest replay ID: ${latestReplayId}`
+                );
+                for (const event of data.events) {
+                    try {
+                        this.#logger.debug(
+                            `${logLabel} - Raw event: ${toJsonString(event)}`
+                        );
+                        // Load event schema from cache or from the gRPC client
+                        this.#logger.debug(
+                            `${logLabel} - Retrieving schema ID: ${event.event.schemaId}`
+                        );
+                        const schema = await this.#getEventSchemaFromId(
+                            event.event.schemaId
+                        );
+                        // Retrieve subscription
+                        let subscription;
+                        if (isManaged) {
+                            subscription =
+                                this.#managedSubscriptions.get(subscriptionId);
+                        } else {
+                            subscription = this.#subscriptions.get(topicName);
+                        }
+                        if (!subscription) {
+                            throw new Error(
+                                `Failed to retrieve ${isManaged ? 'managed ' : ''}subscription: ${logLabel}.`
+                            );
+                        }
+                        subscription.info.receivedEventCount++;
+                        // Parse event thanks to schema
+                        const parsedEvent = parseEvent(schema, event);
+                        this.#logger.debug(
+                            `${logLabel} - Parsed event: ${toJsonString(parsedEvent)}`
+                        );
+                        subscribeCallback(
+                            subscription.info,
+                            SubscribeCallbackType.EVENT,
+                            parsedEvent
+                        );
+                    } catch (error) {
+                        // Report event parsing error with replay ID if possible
+                        let replayId;
+                        try {
+                            if (event.replayId) {
+                                replayId = decodeReplayId(event.replayId);
+                            }
+                            // eslint-disable-next-line no-empty, no-unused-vars
+                        } catch (error) {}
+                        const message = replayId
+                            ? `Failed to parse event with replay ID ${replayId}`
+                            : `Failed to parse event with unknown replay ID (latest replay ID was ${latestReplayId})`;
+                        const parseError = new EventParseError(
+                            message,
+                            error,
+                            replayId,
+                            event,
+                            latestReplayId
+                        );
+                        subscribeCallback(
+                            subscription.info,
+                            SubscribeCallbackType.ERROR,
+                            parseError
+                        );
+                        this.#logger.error(parseError);
+                    }
+
+                    // Handle last requested event
+                    if (
+                        subscription.info.receivedEventCount ===
+                        subscription.info.requestedEventCount
+                    ) {
+                        this.#logger.debug(
+                            `${logLabel} - Reached last of ${subscription.info.requestedEventCount} requested event on channel.`
+                        );
+                        if (subscription.info.isInfiniteEventRequest) {
+                            // Request additional events
+                            if (isManaged) {
+                                this.requestAdditionalManagedEvents(
+                                    subscription.info.subscriptionId,
+                                    subscription.info.requestedEventCount
+                                );
+                            } else {
+                                this.requestAdditionalEvents(
+                                    subscription.info.topicName,
+                                    subscription.info.requestedEventCount
+                                );
+                            }
+                        } else {
+                            // Emit a 'lastevent' event when reaching the last requested event count
+                            subscribeCallback(
+                                subscription.info,
+                                SubscribeCallbackType.LAST_EVENT
+                            );
+                        }
+                    }
+                }
+            } else {
+                // If there are no events then, every 270 seconds (or less) the server publishes a keepalive message with
+                // the latestReplayId and pendingNumRequested (the number of events that the client is still waiting for)
+                this.#logger.debug(
+                    `${logLabel} - Received keepalive message. Latest replay ID: ${latestReplayId}`
+                );
+                data.latestReplayId = latestReplayId; // Replace original value with decoded value
+                subscribeCallback(
+                    subscription.info,
+                    SubscribeCallbackType.GRPC_KEEP_ALIVE
+                );
+            }
+        });
+        grpcSubscription.on('end', () => {
+            if (isManaged) {
+                this.#managedSubscriptions.delete(subscriptionId);
+            } else {
+                this.#subscriptions.delete(topicName);
+            }
+            this.#logger.info(`${logLabel} - gRPC stream ended`);
+            subscribeCallback(subscription.info, SubscribeCallbackType.END);
+        });
+        grpcSubscription.on('error', (error) => {
+            this.#logger.error(
+                `${logLabel} - gRPC stream error: ${JSON.stringify(error)}`
+            );
+            subscribeCallback(
+                subscription.info,
+                SubscribeCallbackType.ERROR,
+                error
+            );
+        });
+        grpcSubscription.on('status', (status) => {
+            this.#logger.info(
+                `${logLabel} - gRPC stream status: ${JSON.stringify(status)}`
+            );
+            subscribeCallback(
+                subscription.info,
+                SubscribeCallbackType.GRPC_STATUS,
+                status
+            );
+        });
     }
 
     /**
@@ -686,5 +816,31 @@ export default class PubSubApiClient {
                 }
             });
         });
+    }
+
+    /**
+     * Validates the number of requested events
+     * @param {string} topicName for logging purposes
+     * @param {number} numRequested number of requested events
+     * @returns safe value for number of requested events
+     */
+    #validateRequestedEventCount(topicName, numRequested) {
+        if (typeof numRequested !== 'number') {
+            throw new Error(
+                `Expected a number type for number of requested events but got ${typeof numRequested}`
+            );
+        }
+        if (!Number.isSafeInteger(numRequested) || numRequested < 1) {
+            throw new Error(
+                `Expected an integer greater than 1 for number of requested events but got ${numRequested}`
+            );
+        }
+        if (numRequested > MAX_EVENT_BATCH_SIZE) {
+            this.#logger.warn(
+                `The number of requested events for ${topicName} exceeds max event batch size (${MAX_EVENT_BATCH_SIZE}).`
+            );
+            return MAX_EVENT_BATCH_SIZE;
+        }
+        return numRequested;
     }
 }

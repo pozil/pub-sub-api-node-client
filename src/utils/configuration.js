@@ -1,17 +1,8 @@
+import { AuthType } from './types.js';
+
 const DEFAULT_PUB_SUB_ENDPOINT = 'api.pubsub.salesforce.com:7443';
 
-/**
- * Enum for auth type values
- * @enum {string}
- */
-export const AuthType = {
-    USER_SUPPLIED: 'user-supplied',
-    USERNAME_PASSWORD: 'username-password',
-    OAUTH_CLIENT_CREDENTIALS: 'oauth-client-credentials',
-    OAUTH_JWT_BEARER: 'oauth-jwt-bearer'
-};
-
-export class Configuration {
+export default class Configuration {
     /**
      * @param {Configuration} config the client configuration
      * @returns {Configuration} the sanitized client configuration

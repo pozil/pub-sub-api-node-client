@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv';
 import PubSubApiClient from '../../src/client.js';
-import { AuthType } from '../../src/utils/configuration.js';
+import { AuthType } from '../../src/utils/types.js';
 import SimpleFileLogger from '../helper/simpleFileLogger.js';
 import injectJasmineReporter from '../helper/reporter.js';
 import { sleep, waitFor } from '../helper/asyncUtilities.js';
@@ -68,7 +68,7 @@ describe('Client failures', function () {
         expect(isConnectionClosed).toBeTrue();
     });
 
-    it('fails to subscribe to an invalid event', async function () {
+    it('fails to subscribe to an invalid topic name', async function () {
         let grpcStatusCode, errorCode;
         let isConnectionClosed = false;
 
@@ -85,7 +85,7 @@ describe('Client failures', function () {
                 isConnectionClosed = true;
             }
         };
-        client.subscribe('/event/INVALID', callback, 1);
+        client.subscribe('/event/INVALID', callback);
 
         // Wait for subscribe to be effective and error to surface
         await waitFor(5000, () => errorCode !== undefined);
@@ -94,5 +94,38 @@ describe('Client failures', function () {
         expect(errorCode).toBe(7);
         expect(grpcStatusCode).toBe(7);
         expect(isConnectionClosed).toBeTrue();
+    });
+
+    it('fails to subscribe to an invalid managed subscription name', async function () {
+        // Build PubSub client
+        client = await getConnectedPubSubApiClient(logger);
+
+        // Send subscribe request
+        try {
+            await client.subscribeWithManagedSubscription('INVALID', () => {});
+        } catch (error) {
+            expect(error.message).toMatch(
+                'Failed to retrieve managed event subscription'
+            );
+        } finally {
+            client.close();
+        }
+    });
+
+    it('fails to subscribe to an managed subscription that is not running', async function () {
+        // Build PubSub client
+        client = await getConnectedPubSubApiClient(logger);
+
+        // Send subscribe request
+        try {
+            await client.subscribeWithManagedSubscription(
+                'Managed_Inactive_Sample_PE',
+                () => {}
+            );
+        } catch (error) {
+            expect(error.message).toMatch('subscription is in STOP state');
+        } finally {
+            client.close();
+        }
     });
 });
