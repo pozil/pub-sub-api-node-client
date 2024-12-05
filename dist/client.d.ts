@@ -18,7 +18,7 @@ export default class PubSubApiClient {
      */
     connect(): Promise<void>;
     /**
-     * Get connectivity state from current channel.
+     * Gets the gRPC connectivity state from the current channel.
      * @returns {Promise<connectivityState>} Promise that holds channel's connectivity information {@link connectivityState}
      * @memberof PubSubApiClient.prototype
      */
@@ -49,11 +49,33 @@ export default class PubSubApiClient {
      */
     subscribe(topicName: string, subscribeCallback: SubscribeCallback, numRequested?: number | null): void;
     /**
+     * Subscribes to a topic thanks to a managed subscription.
+     * @param {string} subscriptionIdOrName managed subscription ID or developer name
+     * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
+     * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
+     * @throws Throws an error if the managed subscription does not exist or is not in the `RUN` state.
+     * @memberof PubSubApiClient.prototype
+     */
+    subscribeWithManagedSubscription(subscriptionIdOrName: string, subscribeCallback: SubscribeCallback, numRequested?: number | null): Promise<void>;
+    /**
      * Request additional events on an existing subscription.
      * @param {string} topicName topic name
-     * @param {number} numRequested number of events requested.
+     * @param {number} numRequested number of events requested
      */
     requestAdditionalEvents(topicName: string, numRequested: number): void;
+    /**
+     * Request additional events on an existing managed subscription.
+     * @param {string} subscriptionId managed subscription ID
+     * @param {number} numRequested number of events requested
+     */
+    requestAdditionalManagedEvents(subscriptionId: string, numRequested: number): void;
+    /**
+     * Commits a replay ID on a managed subscription.
+     * @param {string} subscriptionId managed subscription ID
+     * @param {number} replayId event replay ID
+     * @returns {string} commit request UUID
+     */
+    commitReplayId(subscriptionId: string, replayId: number): string;
     /**
      * Publishes a payload to a topic using the gRPC client.
      * @param {string} topicName name of the topic that we're subscribing to
@@ -70,62 +92,12 @@ export default class PubSubApiClient {
     close(): void;
     #private;
 }
-export type PublishResult = {
-    replayId: number;
-    correlationKey: string;
-};
-export type SubscribeCallback = (subscription: SubscriptionInfo, callbackType: SubscribeCallbackType, data?: any) => any;
-export type Subscription = {
-    info: SubscriptionInfo;
-    grpcSubscription: any;
-    subscribeCallback: SubscribeCallback;
-};
-export type SubscriptionInfo = {
-    topicName: string;
-    requestedEventCount: number;
-    receivedEventCount: number;
-    lastReplayId: number;
-};
-export type Configuration = {
-    authType: AuthType;
-    pubSubEndpoint: string;
-    loginUrl: string;
-    username: string;
-    password: string;
-    userToken: string;
-    clientId: string;
-    clientSecret: string;
-    privateKey: string;
-    accessToken: string;
-    instanceUrl: string;
-    organizationId: string;
-};
-export type Logger = {
-    debug: Function;
-    info: Function;
-    error: Function;
-    warn: Function;
-};
-export type SubscribeRequest = {
-    topicName: string;
-    numRequested: number;
-    replayPreset?: number;
-    replayId?: number;
-};
+export type PublishResult = import("./utils/types.js").PublishResult;
+export type Subscription = import("./utils/types.js").Subscription;
+export type SubscriptionInfo = import("./utils/types.js").SubscriptionInfo;
+export type Configuration = import("./utils/types.js").Configuration;
+export type Logger = import("./utils/types.js").Logger;
+export type SubscribeRequest = import("./utils/types.js").SubscribeRequest;
 import { connectivityState } from '@grpc/grpc-js';
-import { Configuration } from './utils/configuration.js';
-/**
- * Enum for subscripe callback type values
- */
-type SubscribeCallbackType = string;
-declare namespace SubscribeCallbackType {
-    let EVENT: string;
-    let LAST_EVENT: string;
-    let ERROR: string;
-    let END: string;
-    let GRPC_STATUS: string;
-    let GRPC_KEEP_ALIVE: string;
-}
-import { AuthType } from './utils/configuration.js';
-export {};
+import Configuration from './utils/configuration.js';
 //# sourceMappingURL=client.d.ts.map
