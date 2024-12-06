@@ -2,7 +2,7 @@ import { AuthType } from './types.js';
 
 const DEFAULT_PUB_SUB_ENDPOINT = 'api.pubsub.salesforce.com:7443';
 
-export default class Configuration {
+export default class ConfigurationLoader {
     /**
      * @param {Configuration} config the client configuration
      * @returns {Configuration} the sanitized client configuration
@@ -12,13 +12,13 @@ export default class Configuration {
         config.pubSubEndpoint =
             config.pubSubEndpoint ?? DEFAULT_PUB_SUB_ENDPOINT;
         // Check config for specific auth types
-        Configuration.#checkMandatoryVariables(config, ['authType']);
+        ConfigurationLoader.#checkMandatoryVariables(config, ['authType']);
         switch (config.authType) {
             case AuthType.USER_SUPPLIED:
-                config = Configuration.#loadUserSuppliedAuth(config);
+                config = ConfigurationLoader.#loadUserSuppliedAuth(config);
                 break;
             case AuthType.USERNAME_PASSWORD:
-                Configuration.#checkMandatoryVariables(config, [
+                ConfigurationLoader.#checkMandatoryVariables(config, [
                     'loginUrl',
                     'username',
                     'password'
@@ -26,14 +26,14 @@ export default class Configuration {
                 config.userToken = config.userToken ?? '';
                 break;
             case AuthType.OAUTH_CLIENT_CREDENTIALS:
-                Configuration.#checkMandatoryVariables(config, [
+                ConfigurationLoader.#checkMandatoryVariables(config, [
                     'loginUrl',
                     'clientId',
                     'clientSecret'
                 ]);
                 break;
             case AuthType.OAUTH_JWT_BEARER:
-                Configuration.#checkMandatoryVariables(config, [
+                ConfigurationLoader.#checkMandatoryVariables(config, [
                     'loginUrl',
                     'clientId',
                     'username',
@@ -53,7 +53,7 @@ export default class Configuration {
      * @returns {Configuration} sanitized configuration
      */
     static #loadUserSuppliedAuth(config) {
-        Configuration.#checkMandatoryVariables(config, [
+        ConfigurationLoader.#checkMandatoryVariables(config, [
             'accessToken',
             'instanceUrl'
         ]);

@@ -12,6 +12,17 @@ export const SubscribeCallbackType = {
 };
 
 /**
+ * Enum for publish callback type values
+ * @enum {string}
+ */
+export const PublishCallbackType = {
+    PUBLISH_RESPONSE: 'publishResponse',
+    ERROR: 'error',
+    GRPC_STATUS: 'grpcStatus',
+    GRPC_KEEP_ALIVE: 'grpcKeepAlive'
+};
+
+/**
  * Enum for auth type values
  * @enum {string}
  */
@@ -35,7 +46,12 @@ export const EventSubscriptionAdminState = {
  * @typedef {Object} PublishResult
  * @property {number} replayId
  * @property {string} correlationKey
- * @global
+ */
+
+/**
+ * @typedef {Object} Schema
+ * @property {string} id
+ * @property {Object} type Avro schema type
  */
 
 /**
@@ -43,7 +59,7 @@ export const EventSubscriptionAdminState = {
  * @param {SubscriptionInfo} subscription
  * @param {SubscribeCallbackType} callbackType
  * @param {Object} [data]
- * @global
+ * @returns {void}
  */
 
 /**
@@ -51,7 +67,6 @@ export const EventSubscriptionAdminState = {
  * @property {SubscriptionInfo} info
  * @property {Object} grpcSubscription
  * @property {SubscribeCallback} subscribeCallback
- * @protected
  */
 
 /**
@@ -64,7 +79,33 @@ export const EventSubscriptionAdminState = {
  * @property {number} receivedEventCount
  * @property {number} lastReplayId
  * @property {boolean} isInfiniteEventRequest
- * @protected
+ */
+
+/**
+ * @callback PublishCallback
+ * @param {PublishStreamInfo} info
+ * @param {PublishCallbackType} callbackType
+ * @param {Object} [data]
+ * @returns {void}
+ */
+
+/**
+ * @typedef {Object} PublishStream
+ * @property {PublishStreamInfo} info
+ * @property {Object} grpcPublishStream
+ * @property {PublishCallback} publishCallback
+ */
+
+/**
+ * @typedef {Object} PublishStreamInfo
+ * @property {string} topicName
+ * @property {number} lastReplayId
+ */
+
+/**
+ * @typedef {Object} ProducerEvent
+ * @property {string} id
+ * @property {Object} payload
  */
 
 /**
@@ -81,7 +122,6 @@ export const EventSubscriptionAdminState = {
  * @property {string} accessToken
  * @property {string} instanceUrl
  * @property {string} organizationId
- * @protected
  */
 
 /**
@@ -90,7 +130,6 @@ export const EventSubscriptionAdminState = {
  * @property {Function} info
  * @property {Function} error
  * @property {Function} warn
- * @protected
  */
 
 /**
@@ -100,5 +139,4 @@ export const EventSubscriptionAdminState = {
  * @property {string} [subscriptionId]
  * @property {number} [replayPreset]
  * @property {number} [replayId]
- * @protected
  */
