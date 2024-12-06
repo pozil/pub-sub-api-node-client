@@ -1,7 +1,5 @@
 /**
  * Client for the Salesforce Pub/Sub API
- * @alias PubSubApiClient
- * @global
  */
 export default class PubSubApiClient {
     /**
@@ -14,13 +12,11 @@ export default class PubSubApiClient {
      * Authenticates with Salesforce (if not using user-supplied authentication mode) then,
      * connects to the Pub/Sub API.
      * @returns {Promise<void>} Promise that resolves once the connection is established
-     * @memberof PubSubApiClient.prototype
      */
     connect(): Promise<void>;
     /**
      * Gets the gRPC connectivity state from the current channel.
      * @returns {Promise<connectivityState>} Promise that holds channel's connectivity information {@link connectivityState}
-     * @memberof PubSubApiClient.prototype
      */
     getConnectivityState(): Promise<connectivityState>;
     /**
@@ -28,7 +24,6 @@ export default class PubSubApiClient {
      * @param {string} topicName name of the topic that we're subscribing to
      * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
      * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
-     * @memberof PubSubApiClient.prototype
      */
     subscribeFromEarliestEvent(topicName: string, subscribeCallback: SubscribeCallback, numRequested?: number | null): void;
     /**
@@ -37,7 +32,6 @@ export default class PubSubApiClient {
      * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
      * @param {number | null} numRequested number of events requested. If null, the client keeps the subscription alive forever.
      * @param {number} replayId replay ID
-     * @memberof PubSubApiClient.prototype
      */
     subscribeFromReplayId(topicName: string, subscribeCallback: SubscribeCallback, numRequested: number | null, replayId: number): void;
     /**
@@ -45,7 +39,6 @@ export default class PubSubApiClient {
      * @param {string} topicName name of the topic that we're subscribing to
      * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
      * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
-     * @memberof PubSubApiClient.prototype
      */
     subscribe(topicName: string, subscribeCallback: SubscribeCallback, numRequested?: number | null): void;
     /**
@@ -54,7 +47,6 @@ export default class PubSubApiClient {
      * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
      * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
      * @throws Throws an error if the managed subscription does not exist or is not in the `RUN` state.
-     * @memberof PubSubApiClient.prototype
      */
     subscribeWithManagedSubscription(subscriptionIdOrName: string, subscribeCallback: SubscribeCallback, numRequested?: number | null): Promise<void>;
     /**
@@ -77,27 +69,37 @@ export default class PubSubApiClient {
      */
     commitReplayId(subscriptionId: string, replayId: number): string;
     /**
-     * Publishes a payload to a topic using the gRPC client.
-     * @param {string} topicName name of the topic that we're subscribing to
-     * @param {Object} payload
+     * Publishes a payload to a topic using the gRPC client. This is a synchronous operation, use `publishBatch` when publishing event batches.
+     * @param {string} topicName name of the topic that we're publishing on
+     * @param {Object} payload payload of the event that is being published
      * @param {string} [correlationKey] optional correlation key. If you don't provide one, we'll generate a random UUID for you.
      * @returns {Promise<PublishResult>} Promise holding a PublishResult object with replayId and correlationKey
-     * @memberof PubSubApiClient.prototype
      */
     publish(topicName: string, payload: any, correlationKey?: string): Promise<PublishResult>;
     /**
+     * Publishes a batch of events using the gRPC client's publish stream.
+     * @param {string} topicName name of the topic that we're publishing on
+     * @param {ProducerEvent[]} events events to be published
+     * @param {PublishCallback} publishCallback callback function for handling publish responses
+     */
+    publishBatch(topicName: string, events: ProducerEvent[], publishCallback: PublishCallback): Promise<void>;
+    /**
      * Closes the gRPC connection. The client will no longer receive events for any topic.
-     * @memberof PubSubApiClient.prototype
      */
     close(): void;
     #private;
 }
-export type PublishResult = import("./utils/types.js").PublishResult;
-export type Subscription = import("./utils/types.js").Subscription;
-export type SubscriptionInfo = import("./utils/types.js").SubscriptionInfo;
 export type Configuration = import("./utils/types.js").Configuration;
 export type Logger = import("./utils/types.js").Logger;
+export type ProducerEvent = import("./utils/types.js").ProducerEvent;
+export type PublishCallback = import("./utils/types.js").PublishCallback;
+export type PublishStream = import("./utils/types.js").PublishStream;
+export type PublishStreamInfo = import("./utils/types.js").PublishStreamInfo;
+export type PublishResult = import("./utils/types.js").PublishResult;
+export type Schema = import("./utils/types.js").Schema;
+export type SubscribeCallback = import("./utils/types.js").SubscribeCallback;
 export type SubscribeRequest = import("./utils/types.js").SubscribeRequest;
+export type Subscription = import("./utils/types.js").Subscription;
+export type SubscriptionInfo = import("./utils/types.js").SubscriptionInfo;
 import { connectivityState } from '@grpc/grpc-js';
-import Configuration from './utils/configuration.js';
 //# sourceMappingURL=client.d.ts.map

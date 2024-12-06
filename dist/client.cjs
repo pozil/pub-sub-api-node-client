@@ -41,39 +41,18 @@ var import_grpc_js = __toESM(require("@grpc/grpc-js"), 1);
 var import_proto_loader = __toESM(require("@grpc/proto-loader"), 1);
 var import_grpc_js2 = require("@grpc/grpc-js");
 
-// src/utils/schemaCache.js
-var SchemaCache = class {
-  /**
-   * Map of schemas indexed by ID
-   * @type {Map<string,Schema>}
-   */
-  #schemaChache;
-  constructor() {
-    this.#schemaChache = /* @__PURE__ */ new Map();
-  }
-  /**
-   * Retrieves a schema based on its ID
-   * @param {string} schemaId
-   * @returns {Schema} schema or undefined if not found
-   */
-  getFromId(schemaId) {
-    return this.#schemaChache.get(schemaId);
-  }
-  /**
-   * Caches a schema
-   * @param {Schema} schema
-   */
-  set(schema) {
-    this.#schemaChache.set(schema.id, schema);
-  }
-};
-
 // src/utils/types.js
 var SubscribeCallbackType = {
   EVENT: "event",
   LAST_EVENT: "lastEvent",
   ERROR: "error",
   END: "end",
+  GRPC_STATUS: "grpcStatus",
+  GRPC_KEEP_ALIVE: "grpcKeepAlive"
+};
+var PublishCallbackType = {
+  PUBLISH_RESPONSE: "publishResponse",
+  ERROR: "error",
   GRPC_STATUS: "grpcStatus",
   GRPC_KEEP_ALIVE: "grpcKeepAlive"
 };
@@ -165,22 +144,22 @@ var CustomLongAvroType = import_avro_js.default.types.LongType.using({
   }
 });
 
-// src/utils/configuration.js
+// src/utils/configurationLoader.js
 var DEFAULT_PUB_SUB_ENDPOINT = "api.pubsub.salesforce.com:7443";
-var Configuration = class _Configuration {
+var ConfigurationLoader = class _ConfigurationLoader {
   /**
    * @param {Configuration} config the client configuration
    * @returns {Configuration} the sanitized client configuration
    */
   static load(config) {
     config.pubSubEndpoint = config.pubSubEndpoint ?? DEFAULT_PUB_SUB_ENDPOINT;
-    _Configuration.#checkMandatoryVariables(config, ["authType"]);
+    _ConfigurationLoader.#checkMandatoryVariables(config, ["authType"]);
     switch (config.authType) {
       case AuthType.USER_SUPPLIED:
-        config = _Configuration.#loadUserSuppliedAuth(config);
+        config = _ConfigurationLoader.#loadUserSuppliedAuth(config);
         break;
       case AuthType.USERNAME_PASSWORD:
-        _Configuration.#checkMandatoryVariables(config, [
+        _ConfigurationLoader.#checkMandatoryVariables(config, [
           "loginUrl",
           "username",
           "password"
@@ -188,14 +167,14 @@ var Configuration = class _Configuration {
         config.userToken = config.userToken ?? "";
         break;
       case AuthType.OAUTH_CLIENT_CREDENTIALS:
-        _Configuration.#checkMandatoryVariables(config, [
+        _ConfigurationLoader.#checkMandatoryVariables(config, [
           "loginUrl",
           "clientId",
           "clientSecret"
         ]);
         break;
       case AuthType.OAUTH_JWT_BEARER:
-        _Configuration.#checkMandatoryVariables(config, [
+        _ConfigurationLoader.#checkMandatoryVariables(config, [
           "loginUrl",
           "clientId",
           "username",
@@ -214,7 +193,7 @@ var Configuration = class _Configuration {
    * @returns {Configuration} sanitized configuration
    */
   static #loadUserSuppliedAuth(config) {
-    _Configuration.#checkMandatoryVariables(config, [
+    _ConfigurationLoader.#checkMandatoryVariables(config, [
       "accessToken",
       "instanceUrl"
     ]);
@@ -582,10 +561,10 @@ var PubSubApiClient = class {
    */
   #client;
   /**
-   * Schema cache
-   * @type {SchemaCache}
+   * Map of schemas indexed by ID
+   * @type {Map<string,Schema>}
    */
-  #schemaChache;
+  #schemas;
   /**
    * Map of subscriptions indexed by topic name
    * @type {Map<string,Subscription>}
@@ -596,6 +575,11 @@ var PubSubApiClient = class {
    * @type {Map<string,Subscription>}
    */
   #managedSubscriptions;
+  /**
+   * Map of publish streams indexed by topic name
+   * @type {Map<string,PublishStream>}
+   */
+  #publishStreams;
   /**
    * Logger
    * @type {Logger}
@@ -608,11 +592,12 @@ var PubSubApiClient = class {
    */
   constructor(config, logger = console) {
     this.#logger = logger;
-    this.#schemaChache = new SchemaCache();
+    this.#schemas = /* @__PURE__ */ new Map();
     this.#subscriptions = /* @__PURE__ */ new Map();
     this.#managedSubscriptions = /* @__PURE__ */ new Map();
+    this.#publishStreams = /* @__PURE__ */ new Map();
     try {
-      this.#config = Configuration.load(config);
+      this.#config = ConfigurationLoader.load(config);
     } catch (error) {
       this.#logger.error(error);
       throw new Error("Failed to initialize Pub/Sub API client", {
@@ -624,7 +609,6 @@ var PubSubApiClient = class {
    * Authenticates with Salesforce (if not using user-supplied authentication mode) then,
    * connects to the Pub/Sub API.
    * @returns {Promise<void>} Promise that resolves once the connection is established
-   * @memberof PubSubApiClient.prototype
    */
   async connect() {
     if (this.#config.authType !== AuthType.USER_SUPPLIED) {
@@ -681,7 +665,6 @@ var PubSubApiClient = class {
   /**
    * Gets the gRPC connectivity state from the current channel.
    * @returns {Promise<connectivityState>} Promise that holds channel's connectivity information {@link connectivityState}
-   * @memberof PubSubApiClient.prototype
    */
   async getConnectivityState() {
     return this.#client?.getChannel()?.getConnectivityState(false);
@@ -691,7 +674,6 @@ var PubSubApiClient = class {
    * @param {string} topicName name of the topic that we're subscribing to
    * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
    * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
-   * @memberof PubSubApiClient.prototype
    */
   subscribeFromEarliestEvent(topicName, subscribeCallback, numRequested = null) {
     this.#subscribe(
@@ -709,7 +691,6 @@ var PubSubApiClient = class {
    * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
    * @param {number | null} numRequested number of events requested. If null, the client keeps the subscription alive forever.
    * @param {number} replayId replay ID
-   * @memberof PubSubApiClient.prototype
    */
   subscribeFromReplayId(topicName, subscribeCallback, numRequested, replayId) {
     this.#subscribe(
@@ -727,7 +708,6 @@ var PubSubApiClient = class {
    * @param {string} topicName name of the topic that we're subscribing to
    * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
    * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
-   * @memberof PubSubApiClient.prototype
    */
   subscribe(topicName, subscribeCallback, numRequested = null) {
     this.#subscribe(
@@ -745,8 +725,11 @@ var PubSubApiClient = class {
    */
   #subscribe(subscribeRequest, subscribeCallback) {
     this.#logger.debug(
-      `Preparing subscribe request: ${JSON.stringify(subscribeRequest)}`
+      `Preparing subscribe request: ${toJsonString(subscribeRequest)}`
     );
+    if (!this.#client) {
+      throw new Error("Pub/Sub API client is not connected.");
+    }
     let { topicName, numRequested } = subscribeRequest;
     try {
       let isInfiniteEventRequest = false;
@@ -787,7 +770,7 @@ var PubSubApiClient = class {
         };
         this.#subscriptions.set(topicName, subscription);
       }
-      this.#injectEventHandlingLogic(subscription, subscribeCallback);
+      this.#injectEventHandlingLogic(subscription);
       grpcSubscription.write(subscribeRequest);
       this.#logger.info(
         `${topicName} - Subscribe request sent for ${numRequested} events`
@@ -805,12 +788,14 @@ var PubSubApiClient = class {
    * @param {SubscribeCallback} subscribeCallback callback function for handling subscription events
    * @param {number | null} [numRequested] optional number of events requested. If not supplied or null, the client keeps the subscription alive forever.
    * @throws Throws an error if the managed subscription does not exist or is not in the `RUN` state.
-   * @memberof PubSubApiClient.prototype
    */
   async subscribeWithManagedSubscription(subscriptionIdOrName, subscribeCallback, numRequested = null) {
     this.#logger.debug(
-      `Preparing managed subscribe request: ${JSON.stringify({ subscriptionIdOrName, numRequested })}`
+      `Preparing managed subscribe request: ${toJsonString({ subscriptionIdOrName, numRequested })}`
     );
+    if (!this.#client) {
+      throw new Error("Pub/Sub API client is not connected.");
+    }
     const managedSubscription = await getManagedSubscription(
       this.#config.instanceUrl,
       this.#config.accessToken,
@@ -821,7 +806,7 @@ var PubSubApiClient = class {
     const subscriptionLabel = `${subscriptionName} (${subscriptionId})`;
     const { topicName, state } = managedSubscription.Metadata;
     this.#logger.info(
-      `Retrieved managed subscription ${subscriptionLabel}: ${JSON.stringify(managedSubscription.Metadata)}`
+      `Retrieved managed subscription ${subscriptionLabel}: ${toJsonString(managedSubscription.Metadata)}`
     );
     if (state !== EventSubscriptionAdminState.RUN) {
       throw new Error(
@@ -872,7 +857,7 @@ var PubSubApiClient = class {
         };
         this.#managedSubscriptions.set(subscriptionId, subscription);
       }
-      this.#injectEventHandlingLogic(subscription, subscribeCallback);
+      this.#injectEventHandlingLogic(subscription);
       grpcSubscription.write({
         subscriptionId,
         numRequested
@@ -893,6 +878,9 @@ var PubSubApiClient = class {
    * @param {number} numRequested number of events requested
    */
   requestAdditionalEvents(topicName, numRequested) {
+    if (!this.#client) {
+      throw new Error("Pub/Sub API client is not connected.");
+    }
     const subscription = this.#subscriptions.get(topicName);
     if (!subscription) {
       throw new Error(
@@ -915,6 +903,9 @@ var PubSubApiClient = class {
    * @param {number} numRequested number of events requested
    */
   requestAdditionalManagedEvents(subscriptionId, numRequested) {
+    if (!this.#client) {
+      throw new Error("Pub/Sub API client is not connected.");
+    }
     const subscription = this.#managedSubscriptions.get(subscriptionId);
     if (!subscription) {
       throw new Error(
@@ -939,6 +930,9 @@ var PubSubApiClient = class {
    * @returns {string} commit request UUID
    */
   commitReplayId(subscriptionId, replayId) {
+    if (!this.#client) {
+      throw new Error("Pub/Sub API client is not connected.");
+    }
     const subscription = this.#managedSubscriptions.get(subscriptionId);
     if (!subscription) {
       throw new Error(
@@ -960,12 +954,11 @@ var PubSubApiClient = class {
     return commitRequestId;
   }
   /**
-   * Publishes a payload to a topic using the gRPC client.
-   * @param {string} topicName name of the topic that we're subscribing to
-   * @param {Object} payload
+   * Publishes a payload to a topic using the gRPC client. This is a synchronous operation, use `publishBatch` when publishing event batches.
+   * @param {string} topicName name of the topic that we're publishing on
+   * @param {Object} payload payload of the event that is being published
    * @param {string} [correlationKey] optional correlation key. If you don't provide one, we'll generate a random UUID for you.
    * @returns {Promise<PublishResult>} Promise holding a PublishResult object with replayId and correlationKey
-   * @memberof PubSubApiClient.prototype
    */
   async publish(topicName, payload, correlationKey) {
     try {
@@ -1009,25 +1002,139 @@ var PubSubApiClient = class {
     }
   }
   /**
+   * Publishes a batch of events using the gRPC client's publish stream.
+   * @param {string} topicName name of the topic that we're publishing on
+   * @param {ProducerEvent[]} events events to be published
+   * @param {PublishCallback} publishCallback callback function for handling publish responses
+   */
+  async publishBatch(topicName, events, publishCallback) {
+    try {
+      this.#logger.debug(
+        `${topicName} - Preparing to publish a batch of ${events.length} event(s): ${toJsonString(events)}`
+      );
+      if (!this.#client) {
+        throw new Error("Pub/Sub API client is not connected.");
+      }
+      let publishStream = this.#publishStreams.get(topicName);
+      let grpcPublishStream;
+      if (publishStream) {
+        this.#logger.debug(
+          `${topicName} - Reusing cached gRPC publish stream`
+        );
+        grpcPublishStream = publishStream.grpcPublishStream;
+      } else {
+        this.#logger.debug(
+          `${topicName} - Establishing new gRPC publish stream`
+        );
+        grpcPublishStream = this.#client.PublishStream();
+        publishStream = {
+          info: {
+            topicName
+          },
+          grpcPublishStream,
+          publishCallback
+        };
+        this.#publishStreams.set(topicName, publishStream);
+      }
+      const schema = await this.#fetchEventSchemaFromTopicNameWithClient(topicName);
+      grpcPublishStream.removeAllListeners();
+      grpcPublishStream.on("data", async (data) => {
+        if (data.results) {
+          data.results = data.results.map((result) => ({
+            replayId: decodeReplayId(result.replayId),
+            correlationKey: result.correlationKey
+          }));
+          this.#logger.info(
+            `${topicName} - Received batch publish response for ${data.results.length} events: ${toJsonString(data)}`
+          );
+          publishCallback(
+            publishStream.info,
+            PublishCallbackType.PUBLISH_RESPONSE,
+            data
+          );
+        } else {
+          this.#logger.debug(
+            `${topicName} - Received batch publish keepalive message: ${toJsonString(data)}`
+          );
+          publishCallback(
+            publishStream.info,
+            PublishCallbackType.GRPC_KEEP_ALIVE,
+            data
+          );
+        }
+      });
+      grpcPublishStream.on("error", async (data) => {
+        this.#logger.debug(
+          `${topicName} - Batch publish error: ${toJsonString(data)}`
+        );
+        publishCallback(
+          publishStream.info,
+          PublishCallbackType.ERROR,
+          data
+        );
+      });
+      grpcPublishStream.on("status", (status) => {
+        this.#logger.info(
+          `${topicName} - Batch publish gRPC stream status: ${toJsonString(status)}`
+        );
+        publishCallback(
+          publishStream.info,
+          PublishCallbackType.GRPC_STATUS,
+          status
+        );
+      });
+      const eventBatch = events.map((baseEvent) => ({
+        id: baseEvent.id ? baseEvent.id : import_crypto2.default.randomUUID(),
+        // Generate ID if not provided
+        schemaId: schema.id,
+        payload: schema.type.toBuffer(baseEvent.payload)
+      }));
+      grpcPublishStream.write({
+        topicName,
+        events: eventBatch
+      });
+      this.#logger.info(
+        `${topicName} - Batch publish request sent with ${events.length} events`
+      );
+    } catch (error) {
+      throw new Error(
+        `Failed to publish event batch for topic ${topicName}`,
+        {
+          cause: error
+        }
+      );
+    }
+  }
+  /**
    * Closes the gRPC connection. The client will no longer receive events for any topic.
-   * @memberof PubSubApiClient.prototype
    */
   close() {
-    this.#logger.info("Clear subscriptions");
+    this.#logger.info("Clear subscriptions and streams");
+    this.#subscriptions.forEach(
+      (sub) => sub.grpcSubscription.removeAllListeners()
+    );
     this.#subscriptions.clear();
+    this.#managedSubscriptions.forEach(
+      (sub) => sub.grpcSubscription.removeAllListeners()
+    );
     this.#managedSubscriptions.clear();
-    this.#logger.info("Closing gRPC stream");
+    this.#publishStreams.forEach(
+      (pub) => pub.grpcPublishStream.removeAllListeners()
+    );
+    this.#publishStreams.clear();
+    this.#schemas.clear();
+    this.#logger.info("Closing gRPC client");
     this.#client?.close();
   }
   /**
    * Injects the standard event handling logic on a subscription
    * @param {Subscription} subscription
-   * @param {SubscribeCallback} subscribeCallback
    */
-  #injectEventHandlingLogic(subscription, subscribeCallback) {
-    const { grpcSubscription } = subscription;
+  #injectEventHandlingLogic(subscription) {
+    const { grpcSubscription, subscribeCallback } = subscription;
     const { topicName, subscriptionId, subscriptionName, isManaged } = subscription.info;
     const logLabel = subscription.info.isManaged ? `${subscriptionName} (${subscriptionId})` : topicName;
+    grpcSubscription.removeAllListeners();
     grpcSubscription.on("data", async (data) => {
       const latestReplayId = decodeReplayId(data.latestReplayId);
       subscription.info.lastReplayId = latestReplayId;
@@ -1136,7 +1243,7 @@ var PubSubApiClient = class {
     });
     grpcSubscription.on("error", (error) => {
       this.#logger.error(
-        `${logLabel} - gRPC stream error: ${JSON.stringify(error)}`
+        `${logLabel} - gRPC stream error: ${toJsonString(error)}`
       );
       subscribeCallback(
         subscription.info,
@@ -1146,7 +1253,7 @@ var PubSubApiClient = class {
     });
     grpcSubscription.on("status", (status) => {
       this.#logger.info(
-        `${logLabel} - gRPC stream status: ${JSON.stringify(status)}`
+        `${logLabel} - gRPC stream status: ${toJsonString(status)}`
       );
       subscribeCallback(
         subscription.info,
@@ -1162,11 +1269,11 @@ var PubSubApiClient = class {
    * @returns {Promise<Schema>} Promise holding parsed event schema
    */
   async #getEventSchemaFromId(schemaId) {
-    let schema = this.#schemaChache.getFromId(schemaId);
+    let schema = this.#schemas.get(schemaId);
     if (!schema) {
       try {
         schema = await this.#fetchEventSchemaFromIdWithClient(schemaId);
-        this.#schemaChache.set(schema);
+        this.#schemas.set(schema.schema, schema);
       } catch (error) {
         throw new Error(`Failed to load schema with ID ${schemaId}`, {
           cause: error
@@ -1192,13 +1299,13 @@ var PubSubApiClient = class {
             this.#logger.debug(
               `${topicName} - Retrieving schema ID: ${schemaId}`
             );
-            let schema = this.#schemaChache.getFromId(schemaId);
+            let schema = this.#schemas.get(schemaId);
             if (!schema) {
               schema = await this.#fetchEventSchemaFromIdWithClient(
                 schemaId
               );
             }
-            this.#schemaChache.set(schema);
+            this.#schemas.set(schema.id, schema);
             resolve(schema);
           }
         }

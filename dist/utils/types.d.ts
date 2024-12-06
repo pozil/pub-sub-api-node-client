@@ -11,6 +11,19 @@ export namespace SubscribeCallbackType {
     let GRPC_KEEP_ALIVE: string;
 }
 /**
+ * Enum for publish callback type values
+ */
+export type PublishCallbackType = string;
+export namespace PublishCallbackType {
+    export let PUBLISH_RESPONSE: string;
+    let ERROR_1: string;
+    export { ERROR_1 as ERROR };
+    let GRPC_STATUS_1: string;
+    export { GRPC_STATUS_1 as GRPC_STATUS };
+    let GRPC_KEEP_ALIVE_1: string;
+    export { GRPC_KEEP_ALIVE_1 as GRPC_KEEP_ALIVE };
+}
+/**
  * Enum for auth type values
  */
 export type AuthType = string;
@@ -32,7 +45,14 @@ export type PublishResult = {
     replayId: number;
     correlationKey: string;
 };
-export type SubscribeCallback = (subscription: SubscriptionInfo, callbackType: SubscribeCallbackType, data?: any) => any;
+export type Schema = {
+    id: string;
+    /**
+     * Avro schema type
+     */
+    type: any;
+};
+export type SubscribeCallback = (subscription: SubscriptionInfo, callbackType: SubscribeCallbackType, data?: any) => void;
 export type Subscription = {
     info: SubscriptionInfo;
     grpcSubscription: any;
@@ -47,6 +67,20 @@ export type SubscriptionInfo = {
     receivedEventCount: number;
     lastReplayId: number;
     isInfiniteEventRequest: boolean;
+};
+export type PublishCallback = (info: PublishStreamInfo, callbackType: PublishCallbackType, data?: any) => void;
+export type PublishStream = {
+    info: PublishStreamInfo;
+    grpcPublishStream: any;
+    publishCallback: PublishCallback;
+};
+export type PublishStreamInfo = {
+    topicName: string;
+    lastReplayId: number;
+};
+export type ProducerEvent = {
+    id: string;
+    payload: any;
 };
 export type Configuration = {
     authType: AuthType;
