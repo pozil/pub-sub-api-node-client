@@ -730,7 +730,8 @@ var PubSubApiClient = class {
             topicName,
             requestedEventCount: subscribeRequest.numRequested,
             receivedEventCount: 0,
-            lastReplayId: null
+            lastReplayId: null,
+            isInfiniteEventRequest
           },
           grpcSubscription,
           subscribeCallback
