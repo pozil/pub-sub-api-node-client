@@ -109,19 +109,47 @@ export const EventSubscriptionAdminState = {
  */
 
 /**
- * @typedef {Object} Configuration
- * @property {AuthType} authType
- * @property {string} pubSubEndpoint
+ * @typedef {Object} UserSuppliedAuthConfiguration
+ * @property {'user-supplied'} authType
+ * @property {string} accessToken
+ * @property {string} instanceUrl
+ * @property {string} organizationId
+ */
+
+/**
+ * @typedef {Object} UsernamePasswordAuthConfiguration
+ * @property {'username-password'} authType
  * @property {string} loginUrl
  * @property {string} username
  * @property {string} password
  * @property {string} userToken
+ */
+
+/**
+ * @typedef {Object} OAuthClientCredentialsAuthConfiguration
+ * @property {'oauth-client-credentials'} authType
+ * @property {string} loginUrl
  * @property {string} clientId
  * @property {string} clientSecret
+ */
+
+/**
+ * @typedef {Object} OAuthJwtBearerAuthConfiguration
+ * @property {'oauth-jwt-bearer'} authType
+ * @property {string} loginUrl
+ * @property {string} clientId
+ * @property {string} username
  * @property {string} privateKey
- * @property {string} accessToken
- * @property {string} instanceUrl
- * @property {string} organizationId
+ */
+
+/**
+ * @typedef {Object} PubSubEndpoint
+ * @property {string} [pubSubEndpoint]
+ */
+
+/**
+ * @typedef Configuration
+ * @type {PubSubEndpoint & (UserSuppliedAuthConfiguration | UsernamePasswordAuthConfiguration | OAuthClientCredentialsAuthConfiguration | OAuthJwtBearerAuthConfiguration)}
  */
 
 /**
