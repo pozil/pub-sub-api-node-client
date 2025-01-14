@@ -82,20 +82,36 @@ export type ProducerEvent = {
     id: string;
     payload: any;
 };
-export type Configuration = {
-    authType: AuthType;
-    pubSubEndpoint: string;
-    loginUrl: string;
-    username: string;
-    password: string;
-    userToken: string;
-    clientId: string;
-    clientSecret: string;
-    privateKey: string;
+export type UserSuppliedAuthConfiguration = {
+    authType: "user-supplied";
     accessToken: string;
     instanceUrl: string;
     organizationId: string;
 };
+export type UsernamePasswordAuthConfiguration = {
+    authType: "username-password";
+    loginUrl: string;
+    username: string;
+    password: string;
+    userToken: string;
+};
+export type OAuthClientCredentialsAuthConfiguration = {
+    authType: "oauth-client-credentials";
+    loginUrl: string;
+    clientId: string;
+    clientSecret: string;
+};
+export type OAuthJwtBearerAuthConfiguration = {
+    authType: "oauth-jwt-bearer";
+    loginUrl: string;
+    clientId: string;
+    username: string;
+    privateKey: string;
+};
+export type PubSubEndpoint = {
+    pubSubEndpoint?: string;
+};
+export type Configuration = PubSubEndpoint & (UserSuppliedAuthConfiguration | UsernamePasswordAuthConfiguration | OAuthClientCredentialsAuthConfiguration | OAuthJwtBearerAuthConfiguration);
 export type Logger = {
     debug: Function;
     info: Function;
