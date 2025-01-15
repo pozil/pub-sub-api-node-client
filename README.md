@@ -212,7 +212,7 @@ Here's an example that will get you started quickly. It listens to up to 3 accou
                     case 'event':
                         // Event received
                         console.log(
-                            `${subscription.topicName} - Handling ${event.payload.ChangeEventHeader.entityName} change event ` +
+                            `${subscription.topicName} - Handling ${data.payload.ChangeEventHeader.entityName} change event ` +
                                 `with ID ${data.replayId} ` +
                                 `(${subscription.receivedEventCount}/${subscription.requestedEventCount} ` +
                                 `events received so far)`
