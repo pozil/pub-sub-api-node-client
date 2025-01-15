@@ -83,18 +83,54 @@ export type ProducerEvent = {
     payload: any;
 };
 export type Configuration = {
+    /**
+     * Authentication type. One of `user-supplied`, `username-password`, `oauth-client-credentials` or `oauth-jwt-bearer`.
+     */
     authType: AuthType;
-    pubSubEndpoint: string;
-    loginUrl: string;
-    username: string;
-    password: string;
-    userToken: string;
-    clientId: string;
-    clientSecret: string;
-    privateKey: string;
-    accessToken: string;
-    instanceUrl: string;
-    organizationId: string;
+    /**
+     * A custom Pub/Sub API endpoint. The default endpoint `api.pubsub.salesforce.com:7443` is used if none is supplied.
+     */
+    pubSubEndpoint?: string;
+    /**
+     * Salesforce login host. One of `https://login.salesforce.com`, `https://test.salesforce.com` or your domain specific host.
+     */
+    loginUrl?: string;
+    /**
+     * Salesforce username.
+     */
+    username?: string;
+    /**
+     * Salesforce user password.
+     */
+    password?: string;
+    /**
+     * Salesforce user security token.
+     */
+    userToken?: string;
+    /**
+     * Connected app client ID.
+     */
+    clientId?: string;
+    /**
+     * Connected app client secret.
+     */
+    clientSecret?: string;
+    /**
+     * Private key content.
+     */
+    privateKey?: string;
+    /**
+     * Salesforce access token.
+     */
+    accessToken?: string;
+    /**
+     * Salesforce instance URL.
+     */
+    instanceUrl?: string;
+    /**
+     * Optional organization ID. If you don't provide one, we'll attempt to parse it from the accessToken.
+     */
+    organizationId?: string;
 };
 export type Logger = {
     debug: Function;

@@ -110,18 +110,18 @@ export const EventSubscriptionAdminState = {
 
 /**
  * @typedef {Object} Configuration
- * @property {AuthType} authType
- * @property {string} pubSubEndpoint
- * @property {string} loginUrl
- * @property {string} username
- * @property {string} password
- * @property {string} userToken
- * @property {string} clientId
- * @property {string} clientSecret
- * @property {string} privateKey
- * @property {string} accessToken
- * @property {string} instanceUrl
- * @property {string} organizationId
+ * @property {AuthType} authType Authentication type. One of `user-supplied`, `username-password`, `oauth-client-credentials` or `oauth-jwt-bearer`.
+ * @property {string} [pubSubEndpoint] A custom Pub/Sub API endpoint. The default endpoint `api.pubsub.salesforce.com:7443` is used if none is supplied.
+ * @property {string} [loginUrl] Salesforce login host. One of `https://login.salesforce.com`, `https://test.salesforce.com` or your domain specific host.
+ * @property {string} [username] Salesforce username.
+ * @property {string} [password] Salesforce user password.
+ * @property {string} [userToken] Salesforce user security token.
+ * @property {string} [clientId] Connected app client ID.
+ * @property {string} [clientSecret] Connected app client secret.
+ * @property {string} [privateKey] Private key content.
+ * @property {string} [accessToken] Salesforce access token.
+ * @property {string} [instanceUrl] Salesforce instance URL.
+ * @property {string} [organizationId] Optional organization ID. If you don't provide one, we'll attempt to parse it from the accessToken.
  */
 
 /**
