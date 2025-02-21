@@ -549,10 +549,10 @@ Client for the Salesforce Pub/Sub API
 
 Builds a new Pub/Sub API client.
 
-| Name            | Type                            | Description                                                                     |
-| --------------- | ------------------------------- | ------------------------------------------------------------------------------- |
-| `configuration` | [Configuration](#configuration) | The client configuration (authentication...).                                   |
-| `logger`        | Logger                          | An optional custom logger. The client uses the console if no value is supplied. |
+| Name            | Type                            | Description                                                                                 |
+| --------------- | ------------------------------- | ------------------------------------------------------------------------------------------- |
+| `configuration` | [Configuration](#configuration) | The client configuration (authentication...).                                               |
+| `logger`        | Logger                          | An optional [custom logger](#logging). The client uses the console if no value is supplied. |
 
 #### `close()`
 
