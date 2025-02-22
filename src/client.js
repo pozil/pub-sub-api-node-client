@@ -896,7 +896,7 @@ export default class PubSubApiClient {
         if (!schema) {
             try {
                 schema = await this.#fetchEventSchemaFromIdWithClient(schemaId);
-                this.#schemas.set(schema.schema, schema);
+                this.#schemas.set(schema.id, schema);
             } catch (error) {
                 throw new Error(`Failed to load schema with ID ${schemaId}`, {
                     cause: error
