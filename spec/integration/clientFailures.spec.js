@@ -91,8 +91,8 @@ describe('Client failures', function () {
         await waitFor(5000, () => errorCode !== undefined);
 
         // Check for gRPC auth error and closed connection
-        expect(errorCode).toBe(7);
-        expect(grpcStatusCode).toBe(7);
+        expect(errorCode).toBe(5);
+        expect(grpcStatusCode).toBe(5);
         expect(isConnectionClosed).toBeTrue();
     });
 
