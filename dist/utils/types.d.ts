@@ -131,6 +131,10 @@ export type Configuration = {
      * Optional organization ID. If you don't provide one, we'll attempt to parse it from the accessToken.
      */
     organizationId?: string;
+    /**
+     * Optional flag used to accept self-signed SSL certificates for testing purposes when set to `false`. Default is `true` (client rejects self-signed SSL certificates).
+     */
+    rejectUnauthorizedSsl?: boolean;
 };
 export type Logger = {
     debug: Function;

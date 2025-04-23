@@ -113,6 +113,7 @@ var CustomLongAvroType = avro.types.LongType.using({
 
 // src/utils/configurationLoader.js
 var DEFAULT_PUB_SUB_ENDPOINT = "api.pubsub.salesforce.com:7443";
+var DEFAULT_REJECT_UNAUTHORIZED_SSL = true;
 var ConfigurationLoader = class _ConfigurationLoader {
   /**
    * @param {Configuration} config the client configuration
@@ -153,7 +154,52 @@ var ConfigurationLoader = class _ConfigurationLoader {
           `Unsupported authType value: ${config.authType}`
         );
     }
+    _ConfigurationLoader.#loadBooleanValue(
+      config,
+      "rejectUnauthorizedSsl",
+      DEFAULT_REJECT_UNAUTHORIZED_SSL
+    );
     return config;
+  }
+  /**
+   * Loads a boolean value from a config key.
+   * Falls back to the provided default value if no value is specified.
+   * Errors out if the config value can't be converted to a boolean value.
+   * @param {Configuration} config
+   * @param {string} key
+   * @param {boolean} defaultValue
+   */
+  static #loadBooleanValue(config, key, defaultValue) {
+    if (!Object.hasOwn(config, key) || config[key] === void 0 || config[key] === null) {
+      config[key] = defaultValue;
+      return;
+    }
+    const value = config[key];
+    const type = typeof value;
+    switch (type) {
+      case "boolean":
+        break;
+      case "string":
+        {
+          switch (value.toUppercase()) {
+            case "TRUE":
+              config[key] = true;
+              break;
+            case "FALSE":
+              config[key] = false;
+              break;
+            default:
+              throw new Error(
+                `Expected boolean value for ${key}, found ${type} with value ${value}`
+              );
+          }
+        }
+        break;
+      default:
+        throw new Error(
+          `Expected boolean value for ${key}, found ${type} with value ${value}`
+        );
+    }
   }
   /**
    * @param {Configuration} config the client configuration
@@ -449,11 +495,6 @@ var SalesforceAuth = class {
    */
   async #authWithJwtBearer() {
     const { clientId, username, loginUrl, privateKey } = this.#config;
-    if (!privateKey.toString().trim().startsWith("-----BEGIN RSA PRIVATE KEY-----")) {
-      throw new Error(
-        `Private key is missing -----BEGIN RSA PRIVATE KEY----- header`
-      );
-    }
     const header = JSON.stringify({ alg: "RS256" });
     const claims = JSON.stringify({
       iss: clientId,
@@ -613,7 +654,9 @@ var PubSubApiClient = class {
       };
       const callCreds = grpc.credentials.createFromMetadataGenerator(metaCallback);
       const combCreds = grpc.credentials.combineChannelCredentials(
-        grpc.credentials.createSsl(rootCert),
+        grpc.credentials.createSsl(rootCert, null, null, {
+          rejectUnauthorized: this.#config.rejectUnauthorizedSsl
+        }),
         callCreds
       );
       this.#client = new sfdcPackage.PubSub(
