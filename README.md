@@ -746,17 +746,18 @@ Holds the information related to an event parsing error. This class attempts to 
 
 Check out the [authentication](#authentication) section for more information on how to provide the right values.
 
-| Name             | Type   | Description                                                                                                               |
-| ---------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `authType`       | string | Authentication type. One of `user-supplied`, `username-password`, `oauth-client-credentials` or `oauth-jwt-bearer`.       |
-| `pubSubEndpoint` | string | A custom Pub/Sub API endpoint. The default endpoint `api.pubsub.salesforce.com:7443` is used if none is supplied.         |
-| `accessToken`    | string | Salesforce access token.                                                                                                  |
-| `instanceUrl`    | string | Salesforce instance URL.                                                                                                  |
-| `organizationId` | string | Optional organization ID. If you don't provide one, we'll attempt to parse it from the accessToken.                       |
-| `loginUrl`       | string | Salesforce login host. One of `https://login.salesforce.com`, `https://test.salesforce.com` or your domain specific host. |
-| `clientId`       | string | Connected app client ID.                                                                                                  |
-| `clientSecret`   | string | Connected app client secret.                                                                                              |
-| `privateKey`     | string | Private key content.                                                                                                      |
-| `username`       | string | Salesforce username.                                                                                                      |
-| `password`       | string | Salesforce user password.                                                                                                 |
-| `userToken`      | string | Salesforce user security token.                                                                                           |
+| Name                    | Type    | Description                                                                                                                                                          |
+| ----------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `authType`              | string  | Authentication type. One of `user-supplied`, `username-password`, `oauth-client-credentials` or `oauth-jwt-bearer`.                                                  |
+| `pubSubEndpoint`        | string  | A custom Pub/Sub API endpoint. The default endpoint `api.pubsub.salesforce.com:7443` is used if none is supplied.                                                    |
+| `accessToken`           | string  | Salesforce access token.                                                                                                                                             |
+| `instanceUrl`           | string  | Salesforce instance URL.                                                                                                                                             |
+| `organizationId`        | string  | Optional organization ID. If you don't provide one, we'll attempt to parse it from the accessToken.                                                                  |
+| `loginUrl`              | string  | Salesforce login host. One of `https://login.salesforce.com`, `https://test.salesforce.com` or your domain specific host.                                            |
+| `clientId`              | string  | Connected app client ID.                                                                                                                                             |
+| `clientSecret`          | string  | Connected app client secret.                                                                                                                                         |
+| `privateKey`            | string  | Private key content.                                                                                                                                                 |
+| `username`              | string  | Salesforce username.                                                                                                                                                 |
+| `password`              | string  | Salesforce user password.                                                                                                                                            |
+| `userToken`             | string  | Salesforce user security token.                                                                                                                                      |
+| `rejectUnauthorizedSsl` | boolean | Optional flag used to accept self-signed SSL certificates for testing purposes when set to `false`. Default is `true` (client rejects self-signed SSL certificates). |

@@ -122,6 +122,7 @@ export const EventSubscriptionAdminState = {
  * @property {string} [accessToken] Salesforce access token.
  * @property {string} [instanceUrl] Salesforce instance URL.
  * @property {string} [organizationId] Optional organization ID. If you don't provide one, we'll attempt to parse it from the accessToken.
+ * @property {boolean} [rejectUnauthorizedSsl] Optional flag used to accept self-signed SSL certificates for testing purposes when set to `false`. Default is `true` (client rejects self-signed SSL certificates).
  */
 
 /**
