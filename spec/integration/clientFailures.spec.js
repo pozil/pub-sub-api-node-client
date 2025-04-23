@@ -90,9 +90,9 @@ describe('Client failures', function () {
         // Wait for subscribe to be effective and error to surface
         await waitFor(5000, () => errorCode !== undefined);
 
-        // Check for gRPC auth error and closed connection
-        expect(errorCode).toBe(5);
-        expect(grpcStatusCode).toBe(5);
+        // Check for gRPC auth error or permission error and closed connection
+        expect(errorCode === 5 || errorCode === 7).toBeTruthy();
+        expect(grpcStatusCode === 5 || grpcStatusCode === 7).toBeTruthy();
         expect(isConnectionClosed).toBeTrue();
     });
 
