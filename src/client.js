@@ -167,7 +167,9 @@ export default class PubSubApiClient {
             const callCreds =
                 grpc.credentials.createFromMetadataGenerator(metaCallback);
             const combCreds = grpc.credentials.combineChannelCredentials(
-                grpc.credentials.createSsl(rootCert),
+                grpc.credentials.createSsl(rootCert, null, null, {
+                    rejectUnauthorized: this.#config.rejectUnauthorizedSsl
+                }),
                 callCreds
             );
 

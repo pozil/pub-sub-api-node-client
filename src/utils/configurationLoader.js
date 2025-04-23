@@ -1,6 +1,7 @@
 import { AuthType } from './types.js';
 
 const DEFAULT_PUB_SUB_ENDPOINT = 'api.pubsub.salesforce.com:7443';
+const DEFAULT_REJECT_UNAUTHORIZED_SSL = true;
 
 export default class ConfigurationLoader {
     /**
@@ -45,7 +46,61 @@ export default class ConfigurationLoader {
                     `Unsupported authType value: ${config.authType}`
                 );
         }
+        // Sanitize rejectUnauthorizedSsl property
+        ConfigurationLoader.#loadBooleanValue(
+            config,
+            'rejectUnauthorizedSsl',
+            DEFAULT_REJECT_UNAUTHORIZED_SSL
+        );
         return config;
+    }
+
+    /**
+     * Loads a boolean value from a config key.
+     * Falls back to the provided default value if no value is specified.
+     * Errors out if the config value can't be converted to a boolean value.
+     * @param {Configuration} config
+     * @param {string} key
+     * @param {boolean} defaultValue
+     */
+    static #loadBooleanValue(config, key, defaultValue) {
+        // Load the default value if no value is specified
+        if (
+            !Object.hasOwn(config, key) ||
+            config[key] === undefined ||
+            config[key] === null
+        ) {
+            config[key] = defaultValue;
+            return;
+        }
+
+        const value = config[key];
+        const type = typeof value;
+        switch (type) {
+            case 'boolean':
+                // Do nothing, value is valid
+                break;
+            case 'string':
+                {
+                    switch (value.toUppercase()) {
+                        case 'TRUE':
+                            config[key] = true;
+                            break;
+                        case 'FALSE':
+                            config[key] = false;
+                            break;
+                        default:
+                            throw new Error(
+                                `Expected boolean value for ${key}, found ${type} with value ${value}`
+                            );
+                    }
+                }
+                break;
+            default:
+                throw new Error(
+                    `Expected boolean value for ${key}, found ${type} with value ${value}`
+                );
+        }
     }
 
     /**
