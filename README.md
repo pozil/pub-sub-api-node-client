@@ -31,6 +31,8 @@ See the [official Pub/Sub API repo](https://github.com/developerforce/pub-sub-ap
     - [EventParseError](#eventparseerror)
     - [Configuration](#configuration)
 
+This project bundles and uses CA root certificates from the [python-ceritfi](https://github.com/certifi/python-certifi/blob/master/certifi/cacert.pem) project.
+
 ## v4 to v5 Migration
 
 > [!WARNING]
