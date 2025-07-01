@@ -3,7 +3,6 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 import avro from 'avro-js';
-import certifi from 'certifi';
 import grpc from '@grpc/grpc-js';
 import protoLoader from '@grpc/proto-loader';
 // eslint-disable-next-line no-unused-vars
@@ -146,7 +145,9 @@ export default class PubSubApiClient {
         try {
             this.#logger.debug(`Connecting to Pub/Sub API`);
             // Read certificates
-            const rootCert = fs.readFileSync(certifi);
+            const rootCert = fs.readFileSync(
+                fileURLToPath(new URL('./certs/cacert.pem', import.meta.url))
+            );
 
             // Load proto definition
             const protoFilePath = fileURLToPath(
