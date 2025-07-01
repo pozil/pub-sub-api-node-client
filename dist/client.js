@@ -637,7 +637,9 @@ var PubSubApiClient = class {
     }
     try {
       this.#logger.debug(`Connecting to Pub/Sub API`);
-      const rootCert = fs.readFileSync(fileURLToPath(new URL("./cacert-6219c1e7.pem?hash=6219c1e7", import.meta.url)));
+      const rootCert = fs.readFileSync(
+        fileURLToPath(new URL("./cacert-2ebcb9e8.pem?hash=2ebcb9e8", import.meta.url))
+      );
       const protoFilePath = fileURLToPath(
         new URL("./pubsub_api-07e1f84a.proto?hash=07e1f84a", import.meta.url)
       );
