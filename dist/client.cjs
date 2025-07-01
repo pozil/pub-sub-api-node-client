@@ -36,7 +36,6 @@ var import_crypto2 = __toESM(require("crypto"), 1);
 var import_fs = __toESM(require("fs"), 1);
 var import_url = require("url");
 var import_avro_js3 = __toESM(require("avro-js"), 1);
-var import_certifi = __toESM(require("certifi"), 1);
 var import_grpc_js = __toESM(require("@grpc/grpc-js"), 1);
 var import_proto_loader = __toESM(require("@grpc/proto-loader"), 1);
 var import_grpc_js2 = require("@grpc/grpc-js");
@@ -671,7 +670,9 @@ var PubSubApiClient = class {
     }
     try {
       this.#logger.debug(`Connecting to Pub/Sub API`);
-      const rootCert = import_fs.default.readFileSync(import_certifi.default);
+      const rootCert = import_fs.default.readFileSync(
+        (0, import_url.fileURLToPath)(new URL("./cacert-2ebcb9e8.pem?hash=2ebcb9e8", "file://" + __filename))
+      );
       const protoFilePath = (0, import_url.fileURLToPath)(
         new URL("./pubsub_api-07e1f84a.proto?hash=07e1f84a", "file://" + __filename)
       );
