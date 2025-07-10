@@ -275,6 +275,8 @@ Here's an example that will get you started quickly. It listens to up to 3 accou
     /data/AccountChangeEvent - Received 1 events, latest replay ID: 18098167
     /data/AccountChangeEvent - Handling Account change event with ID 18098167 (1/3 events received so far)
     {
+        "id": "9b77cea1-a923-4766-ad50-a1797d9b39fd",
+        "schemaId": "a01VpgrsZNJdn-7KStJcxQ",
         "replayId": 18098167,
         "payload": {
             "ChangeEventHeader": {
