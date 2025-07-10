@@ -311,6 +311,8 @@ function parseEvent(schema, event) {
   }
   flattenSinglePropertyObjects(payload);
   return {
+    id: event.event.id,
+    schemaId: event.event.schemaId,
     replayId,
     payload
   };
