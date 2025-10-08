@@ -713,7 +713,7 @@ Callback types:
 
 | Name            | Callback Data                                             | Description                                                                                       |
 | --------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `event`          | Object                                                    | Client received a new event. The attached data is the parsed event data.                          |
+| `event`         | Object                                                    | Client received a new event. The attached data is the parsed event data.                          |
 | `error`         | [EventParseError](#eventparseerror) or Object             | Signals an event parsing error or a gRPC stream error.                                            |
 | `lastEvent`     | void                                                      | Signals that we received the last event that the client requested. The stream will end shortly.   |
 | `end`           | void                                                      | Signals the end of the gRPC stream.                                                               |
