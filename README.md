@@ -458,7 +458,7 @@ When working with high volumes of events you can control the incoming flow of ev
 This is the overall process:
 
 1. Pass a number of requested events in your subscribe call.
-1. Handle the `lastevent` [callback type](#subscribecallback) from subscribe callback to detect the end of the event batch.
+1. Handle the `lastEvent` [callback type](#subscribecallback) from subscribe callback to detect the end of the event batch.
 1. Subscribe to an additional batch of events with `client.requestAdditionalEvents(...)`. If you don't request additional events at this point, the gRPC subscription will close automatically (default Pub/Sub API behavior).
 
 The code below illustrate how you can achieve event flow control:
@@ -713,9 +713,9 @@ Callback types:
 
 | Name            | Callback Data                                             | Description                                                                                       |
 | --------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `data`          | Object                                                    | Client received a new event. The attached data is the parsed event data.                          |
+| `event`          | Object                                                    | Client received a new event. The attached data is the parsed event data.                          |
 | `error`         | [EventParseError](#eventparseerror) or Object             | Signals an event parsing error or a gRPC stream error.                                            |
-| `lastevent`     | void                                                      | Signals that we received the last event that the client requested. The stream will end shortly.   |
+| `lastEvent`     | void                                                      | Signals that we received the last event that the client requested. The stream will end shortly.   |
 | `end`           | void                                                      | Signals the end of the gRPC stream.                                                               |
 | `grpcKeepalive` | `{ latestReplayId: number, pendingNumRequested: number }` | Server publishes this gRPC keep alive message every 270 seconds (or less) if there are no events. |
 | `grpcStatus`    | Object                                                    | Misc gRPC stream status information.                                                              |
