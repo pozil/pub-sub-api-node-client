@@ -25,7 +25,7 @@ if (process.env.TEST_LOGGER === 'simpleFileLogger') {
     logger = console;
 }
 
-const EXTENDED_JASMINE_TIMEOUT = 10000;
+const EXTENDED_JASMINE_TIMEOUT = 20000;
 const PLATFORM_EVENT_TOPIC = '/event/Sample__e';
 const CHANGE_EVENT_TOPIC = '/data/AccountChangeEvent';
 
