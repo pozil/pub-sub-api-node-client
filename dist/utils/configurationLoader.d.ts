@@ -12,12 +12,12 @@ export default class ConfigurationLoader {
      * @param {string} key
      * @param {boolean} defaultValue
      */
-    static "__#1@#loadBooleanValue"(config: Configuration, key: string, defaultValue: boolean): void;
+    static "__#private@#loadBooleanValue"(config: Configuration, key: string, defaultValue: boolean): void;
     /**
      * @param {Configuration} config the client configuration
      * @returns {Configuration} sanitized configuration
      */
-    static "__#1@#loadUserSuppliedAuth"(config: Configuration): Configuration;
-    static "__#1@#checkMandatoryVariables"(config: any, varNames: any): void;
+    static "__#private@#loadUserSuppliedAuth"(config: Configuration): Configuration;
+    static "__#private@#checkMandatoryVariables"(config: any, varNames: any): void;
 }
 //# sourceMappingURL=configurationLoader.d.ts.map
