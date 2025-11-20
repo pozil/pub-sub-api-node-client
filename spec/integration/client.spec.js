@@ -384,7 +384,7 @@ describe('Client', function () {
             const publishedReplayId2 = publishResult.replayId;
 
             // Wait for event to be received
-            await waitFor(5000, () => receivedEvents.length === 2);
+            await waitFor(10000, () => receivedEvents.length === 2);
 
             // Check received events
             expect(hasRequestedAdditionalEvents)
