@@ -9,6 +9,7 @@
     "main": "dist/client.js",
     "exports": {
         ".": {
+            "types": "./dist/client.d.ts",
             "require": "./dist/client.cjs",
             "import": "./dist/client.js"
         }
