@@ -123,6 +123,7 @@ export const EventSubscriptionAdminState = {
  * @property {string} [instanceUrl] Salesforce instance URL.
  * @property {string} [organizationId] Optional organization ID. If you don't provide one, we'll attempt to parse it from the accessToken.
  * @property {boolean} [rejectUnauthorizedSsl] Optional flag used to accept self-signed SSL certificates for testing purposes when set to `false`. Default is `true` (client rejects self-signed SSL certificates).
+ * @property {Object} [grpcChannelOptions] Optional gRPC channel options passed directly to the gRPC client constructor. Use to configure transport-level settings such as keepalive (e.g. `grpc.keepalive_time_ms`, `grpc.keepalive_timeout_ms`, `grpc.keepalive_permit_without_calls`).
  */
 
 /**
