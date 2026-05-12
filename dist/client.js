@@ -664,7 +664,8 @@ var PubSubApiClient = class {
       );
       this.#client = new sfdcPackage.PubSub(
         this.#config.pubSubEndpoint,
-        combCreds
+        combCreds,
+        this.#config.grpcChannelOptions ?? {}
       );
       this.#logger.info(
         `Connected to Pub/Sub API endpoint ${this.#config.pubSubEndpoint}`

@@ -135,6 +135,10 @@ export type Configuration = {
      * Optional flag used to accept self-signed SSL certificates for testing purposes when set to `false`. Default is `true` (client rejects self-signed SSL certificates).
      */
     rejectUnauthorizedSsl?: boolean;
+    /**
+     * Optional gRPC channel options passed directly to the gRPC client constructor. Use to configure transport-level settings such as keepalive (e.g. `grpc.keepalive_time_ms`, `grpc.keepalive_timeout_ms`, `grpc.keepalive_permit_without_calls`).
+     */
+    grpcChannelOptions?: any;
 };
 export type Logger = {
     debug: Function;
