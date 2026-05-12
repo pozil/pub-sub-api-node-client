@@ -177,7 +177,8 @@ export default class PubSubApiClient {
             // Return pub/sub gRPC client
             this.#client = new sfdcPackage.PubSub(
                 this.#config.pubSubEndpoint,
-                combCreds
+                combCreds,
+                this.#config.grpcChannelOptions ?? {}
             );
             this.#logger.info(
                 `Connected to Pub/Sub API endpoint ${this.#config.pubSubEndpoint}`
