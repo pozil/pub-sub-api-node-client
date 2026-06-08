@@ -4,9 +4,14 @@ logs
 *-debug.log
 *-error.log
 
+# SF project
+**/.sf/
+**/.sfdx/
+
 # Secret configuration
 .env
-keys
+keys/
+**/extlClntAppGlobalOauthSets/**
 
 # Tooling files
 node_modules
@@ -22,6 +27,3 @@ Thumbs.db
 ehthumbs.db
 [Dd]esktop.ini
 $RECYCLE.BIN/
-
-# Sample code
-sample*

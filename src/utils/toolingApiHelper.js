@@ -1,6 +1,6 @@
 import jsforce from 'jsforce';
 
-const API_VERSION = '62.0';
+const API_VERSION = '66.0';
 const MANAGED_SUBSCRIPTION_KEY_PREFIX = '18x';
 
 /**

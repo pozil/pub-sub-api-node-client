@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExternalClientApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+    <contactEmail>pozil@salesforce.com</contactEmail>
+    <distributionState>Local</distributionState>
+    <isProtected>false</isProtected>
+    <label>PubSub API JWT Tests</label>
+    <orgScopedExternalApp>00D58000000arpq:PubSub_API_JWT_test</orgScopedExternalApp>
+</ExternalClientApplication>
