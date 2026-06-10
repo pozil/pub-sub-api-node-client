@@ -1,4 +1,4 @@
-[![npm](https://img.shields.io/npm/v/salesforce-pubsub-api-client)](https://www.npmjs.com/package/salesforce-pubsub-api-client)
+[![CI](https://github.com/pozil/pub-sub-api-node-client/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pozil/pub-sub-api-node-client/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/salesforce-pubsub-api-client)](https://www.npmjs.com/package/salesforce-pubsub-api-client)
 
 # Node client for the Salesforce Pub/Sub API
 
