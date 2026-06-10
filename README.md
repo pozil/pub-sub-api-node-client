@@ -682,12 +682,13 @@ The function takes three parameters:
 
 Callback types:
 
-| Name              | Callback Data                         | Description                                                                                              |
-| ----------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `publishResponse` | [PublishResponse](#publishresponse)   | Client received a publish response. The attached data is the publish confirmation for a batch of events. |
-| `error`           | Object                                | Signals an event publishing error or a gRPC stream error.                                                |
-| `grpcKeepalive`   | `{ schemaId: string, rpcId: string }` | Server publishes this gRPC keep alive message every 270 seconds (or less) if there are no events.        |
-| `grpcStatus`      | Object                                | Misc gRPC stream status information.                                                                     |
+| Name              | Callback Data                         | Description                                                                                                                                                         |
+| ----------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `publishResponse` | [PublishResponse](#publishresponse)   | Client received a publish response. The attached data is the publish confirmation for a batch of events.                                                            |
+| `error`           | Object                                | Signals an event publishing error or a gRPC stream error. The publish stream is closed and removed.                                                                 |
+| `end`             | void                                  | Signals the end of the gRPC publish stream (e.g. after a server-side timeout). The stream is removed and a new one will be created on the next `publishBatch` call. |
+| `grpcKeepalive`   | `{ schemaId: string, rpcId: string }` | Server publishes this gRPC keep alive message every 270 seconds (or less) if there are no events.                                                                   |
+| `grpcStatus`      | Object                                | Misc gRPC stream status information.                                                                                                                                |
 
 #### PublishResponse
 

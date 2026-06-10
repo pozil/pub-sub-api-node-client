@@ -18,6 +18,7 @@ export const SubscribeCallbackType = {
 export const PublishCallbackType = {
     PUBLISH_RESPONSE: 'publishResponse',
     ERROR: 'error',
+    END: 'end',
     GRPC_STATUS: 'grpcStatus',
     GRPC_KEEP_ALIVE: 'grpcKeepAlive'
 };

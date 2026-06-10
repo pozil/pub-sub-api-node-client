@@ -665,6 +665,7 @@ export default class PubSubApiClient {
                 }
             });
             grpcPublishStream.on('error', async (data) => {
+                this.#publishStreams.delete(topicName);
                 this.#logger.debug(
                     `${topicName} - Batch publish error: ${toJsonString(data)}`
                 );
@@ -673,6 +674,13 @@ export default class PubSubApiClient {
                     PublishCallbackType.ERROR,
                     data
                 );
+            });
+            grpcPublishStream.on('end', () => {
+                this.#publishStreams.delete(topicName);
+                this.#logger.info(
+                    `${topicName} - Batch publish gRPC stream ended`
+                );
+                publishCallback(publishStream.info, PublishCallbackType.END);
             });
             grpcPublishStream.on('status', (status) => {
                 this.#logger.info(
