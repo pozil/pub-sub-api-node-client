@@ -19,6 +19,7 @@ var SubscribeCallbackType = {
 var PublishCallbackType = {
   PUBLISH_RESPONSE: "publishResponse",
   ERROR: "error",
+  END: "end",
   GRPC_STATUS: "grpcStatus",
   GRPC_KEEP_ALIVE: "grpcKeepAlive"
 };
@@ -387,7 +388,7 @@ function hexToBin(hex) {
 
 // src/utils/toolingApiHelper.js
 import jsforce from "jsforce";
-var API_VERSION = "62.0";
+var API_VERSION = "66.0";
 var MANAGED_SUBSCRIPTION_KEY_PREFIX = "18x";
 async function getManagedSubscription(instanceUrl, accessToken, subscriptionIdOrName) {
   const conn = new jsforce.Connection({ instanceUrl, accessToken });
@@ -1079,6 +1080,7 @@ var PubSubApiClient = class {
         }
       });
       grpcPublishStream.on("error", async (data) => {
+        this.#publishStreams.delete(topicName);
         this.#logger.debug(
           `${topicName} - Batch publish error: ${toJsonString(data)}`
         );
@@ -1087,6 +1089,13 @@ var PubSubApiClient = class {
           PublishCallbackType.ERROR,
           data
         );
+      });
+      grpcPublishStream.on("end", () => {
+        this.#publishStreams.delete(topicName);
+        this.#logger.info(
+          `${topicName} - Batch publish gRPC stream ended`
+        );
+        publishCallback(publishStream.info, PublishCallbackType.END);
       });
       grpcPublishStream.on("status", (status) => {
         this.#logger.info(

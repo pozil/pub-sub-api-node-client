@@ -18,6 +18,8 @@ export namespace PublishCallbackType {
     export let PUBLISH_RESPONSE: string;
     let ERROR_1: string;
     export { ERROR_1 as ERROR };
+    let END_1: string;
+    export { END_1 as END };
     let GRPC_STATUS_1: string;
     export { GRPC_STATUS_1 as GRPC_STATUS };
     let GRPC_KEEP_ALIVE_1: string;
