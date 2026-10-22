@@ -19,5 +19,8 @@ export default [
         rules: {
             'jasmine/new-line-before-expect': 'off'
         }
+    },
+    {
+        ignores: ['dist/**']
     }
 ];

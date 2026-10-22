@@ -159,9 +159,7 @@ You can pass a logger like pino in the client constructor:
 ```js
 import pino from 'pino';
 
-const config = {
-    /* your config goes here */
-};
+const config = {/* your config goes here */};
 const logger = pino();
 const client = new PubSubApiClient(config, logger);
 ```

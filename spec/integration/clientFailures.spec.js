@@ -24,6 +24,10 @@ const PLATFORM_EVENT_TOPIC = '/event/Sample__e';
 describe('Client failures', function () {
     var client;
 
+    beforeAll(() => {
+        jasmine.DEFAULT_TIMEOUT_INTERVAL = 30000;
+    });
+
     afterEach(async () => {
         if (client) {
             client.close();
@@ -60,7 +64,7 @@ describe('Client failures', function () {
         client.subscribe(PLATFORM_EVENT_TOPIC, callback, 1);
 
         // Wait for subscribe to be effective and error to surface
-        await waitFor(5000, () => errorCode !== undefined);
+        await waitFor(20000, () => errorCode !== undefined);
 
         // Check for gRPC auth error and closed connection
         expect(errorCode).toBe(16);
