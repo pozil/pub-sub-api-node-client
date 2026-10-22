@@ -3,5 +3,5 @@
  * This fixes a deserialization bug with Avro not supporting large values.
  * @private
  */
-export const CustomLongAvroType: any;
+export declare const CustomLongAvroType: any;
 //# sourceMappingURL=avroHelper.d.ts.map

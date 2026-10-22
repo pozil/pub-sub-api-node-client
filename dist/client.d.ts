@@ -1,7 +1,21 @@
+import { connectivityState } from '@grpc/grpc-js';
+export type Configuration = import('./utils/types.js').Configuration;
+export type Logger = import('./utils/types.js').Logger;
+export type ProducerEvent = import('./utils/types.js').ProducerEvent;
+export type PublishCallback = import('./utils/types.js').PublishCallback;
+export type PublishStream = import('./utils/types.js').PublishStream;
+export type PublishStreamInfo = import('./utils/types.js').PublishStreamInfo;
+export type PublishResult = import('./utils/types.js').PublishResult;
+export type Schema = import('./utils/types.js').Schema;
+export type SubscribeCallback = import('./utils/types.js').SubscribeCallback;
+export type SubscribeRequest = import('./utils/types.js').SubscribeRequest;
+export type Subscription = import('./utils/types.js').Subscription;
+export type SubscriptionInfo = import('./utils/types.js').SubscriptionInfo;
 /**
  * Client for the Salesforce Pub/Sub API
  */
 export default class PubSubApiClient {
+    #private;
     /**
      * Builds a new Pub/Sub API client
      * @param {Configuration} config the client configuration
@@ -75,7 +89,7 @@ export default class PubSubApiClient {
      * @param {string} [correlationKey] optional correlation key. If you don't provide one, we'll generate a random UUID for you.
      * @returns {Promise<PublishResult>} Promise holding a PublishResult object with replayId and correlationKey
      */
-    publish(topicName: string, payload: any, correlationKey?: string): Promise<PublishResult>;
+    publish(topicName: string, payload: Object, correlationKey?: string): Promise<PublishResult>;
     /**
      * Publishes a batch of events using the gRPC client's publish stream.
      * @param {string} topicName name of the topic that we're publishing on
@@ -87,19 +101,5 @@ export default class PubSubApiClient {
      * Closes the gRPC connection. The client will no longer receive events for any topic.
      */
     close(): void;
-    #private;
 }
-export type Configuration = import("./utils/types.js").Configuration;
-export type Logger = import("./utils/types.js").Logger;
-export type ProducerEvent = import("./utils/types.js").ProducerEvent;
-export type PublishCallback = import("./utils/types.js").PublishCallback;
-export type PublishStream = import("./utils/types.js").PublishStream;
-export type PublishStreamInfo = import("./utils/types.js").PublishStreamInfo;
-export type PublishResult = import("./utils/types.js").PublishResult;
-export type Schema = import("./utils/types.js").Schema;
-export type SubscribeCallback = import("./utils/types.js").SubscribeCallback;
-export type SubscribeRequest = import("./utils/types.js").SubscribeRequest;
-export type Subscription = import("./utils/types.js").Subscription;
-export type SubscriptionInfo = import("./utils/types.js").SubscriptionInfo;
-import { connectivityState } from '@grpc/grpc-js';
 //# sourceMappingURL=client.d.ts.map

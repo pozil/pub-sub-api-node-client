@@ -1,6 +1,7 @@
 {
     "include": ["src/*.js"],
     "compilerOptions": {
+        "rootDir": "src",
         "allowJs": true,
         "declaration": true,
         "emitDeclarationOnly": true,

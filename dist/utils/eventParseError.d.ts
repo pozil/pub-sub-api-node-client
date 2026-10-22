@@ -6,6 +6,32 @@
  */
 export default class EventParseError extends Error {
     /**
+     * The cause of the error.
+     * @type {Error}
+     * @public
+     */
+    cause: Error;
+    /**
+     * The replay ID of the event at the origin of the error.
+     * Could be undefined if we're not able to extract it from the event data.
+     * @type {number}
+     * @public
+     */
+    replayId: number;
+    /**
+     * The un-parsed event data at the origin of the error.
+     * @type {Object}
+     * @public
+     */
+    event: Object;
+    /**
+     * The latest replay ID that was received before the error.
+     * There could be more than one event between the replay ID and the event causing the error if the events were processed in batch.
+     * @type {number}
+     * @public
+     */
+    latestReplayId: number;
+    /**
      * Builds a new ParseError error.
      * @param {string} message The error message.
      * @param {Error} cause The cause of the error.
@@ -15,32 +41,6 @@ export default class EventParseError extends Error {
      * @param {number} latestReplayId The latest replay ID that was received before the error.
      * @protected
      */
-    protected constructor();
-    /**
-     * The cause of the error.
-     * @type {Error}
-     * @public
-     */
-    public cause: Error;
-    /**
-     * The replay ID of the event at the origin of the error.
-     * Could be undefined if we're not able to extract it from the event data.
-     * @type {number}
-     * @public
-     */
-    public replayId: number;
-    /**
-     * The un-parsed event data at the origin of the error.
-     * @type {Object}
-     * @public
-     */
-    public event: any;
-    /**
-     * The latest replay ID that was received before the error.
-     * There could be more than one event between the replay ID and the event causing the error if the events were processed in batch.
-     * @type {number}
-     * @public
-     */
-    public latestReplayId: number;
+    protected constructor(message: string, cause: Error, replayId: number, event: Object, latestReplayId: number);
 }
 //# sourceMappingURL=eventParseError.d.ts.map
