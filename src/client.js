@@ -724,20 +724,46 @@ export default class PubSubApiClient {
     close() {
         this.#logger.info('Clear subscriptions and streams');
         this.#subscriptions.forEach((sub) =>
-            sub.grpcSubscription.removeAllListeners()
+            this.#detachStream(sub.grpcSubscription)
         );
         this.#subscriptions.clear();
         this.#managedSubscriptions.forEach((sub) =>
-            sub.grpcSubscription.removeAllListeners()
+            this.#detachStream(sub.grpcSubscription)
         );
         this.#managedSubscriptions.clear();
         this.#publishStreams.forEach((pub) =>
-            pub.grpcPublishStream.removeAllListeners()
+            this.#detachStream(pub.grpcPublishStream)
         );
         this.#publishStreams.clear();
         this.#schemas.clear();
         this.#logger.info('Closing gRPC client');
         this.#client?.close();
+    }
+
+    /**
+     * Stops a gRPC stream we're done with from delivering any further 'data'/'end'/'status',
+     * while deliberately leaving its 'error' listener in place.
+     *
+     * Closing the underlying gRPC client below (`#client.close()`) cancels any call that's
+     * still queued for a subchannel pick with an UNAVAILABLE status (see grpc-js's
+     * `Channel.close()`), which is delivered asynchronously as an 'error' event on that
+     * call's stream - e.g. when close() is called again (such as to reconnect with a
+     * refreshed token) while a previous subscribe()/subscribeWithManagedSubscription() call
+     * on this same client hasn't finished establishing yet. Node.js throws an unhandled
+     * exception - crashing the whole host process - if an EventEmitter's 'error' event has
+     * no listener at the moment it's emitted.
+     *
+     * The 'error' listener wired up in #injectEventHandlingLogic (or its publish-stream
+     * equivalent) already forwards to the caller's own subscribeCallback/publishCallback for
+     * every other stream error, so leaving it attached routes a cancellation triggered by this
+     * very close() call through that exact same path too - the caller finds out and can react
+     * to it, instead of the process crashing, or the error being silently dropped.
+     * @param {Object} stream gRPC Duplex stream (subscription or publish stream)
+     */
+    #detachStream(stream) {
+        stream.removeAllListeners('data');
+        stream.removeAllListeners('end');
+        stream.removeAllListeners('status');
     }
 
     /**
